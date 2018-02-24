@@ -423,11 +423,11 @@ echo ""
 
 
 # Create Tag service in Ranger
-printf "\nCreate Tag service in Ranger:\n"
+printf "\nConfigure Tag service in Ranger:\n"
 curl -i -u admin:admin -H "Content-type:application/json" -X POST  http://localhost:6080/service/plugins/services -d '{"name":"singlenode_tag","description":"","isEnabled":true,"configs":{},"type":"tag"}'
 
 # Create some Ranger policies for
-printf "\nFirst setup the Hive Service in Ranger:\n"
+printf "\n\nConfigure Hive service in Ranger:\n"
 curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d '
 {
     "configs": {
@@ -448,19 +448,19 @@ curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type
 }
 '
 
-printf "\nModify an existing Hive policy, granting admin user access to all Databases, Tables, Columns:\n"
+printf "\n\nModify an existing Hive policy, granting admin user access to all Databases, Tables, Columns:\n"
 # First get the Policy ID
 printf "\nFirst get the Policy ID for: all - database, table, column:\n"
-POLICY_ID=$(curl -s -u admin:admin http://localhost:6080/service/plugins/policies/service/2 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
+POLICY_ID=$(curl -i -s -u admin:admin http://localhost:6080/service/plugins/policies/service/2 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
 # Then get just that policy, add the "admin" user to the "users" section, and save to disk
 printf "\nThen get just that policy, add the "admin" user to the "users" section, and save to disk:\n"
-curl -s -u admin:admin "http://localhost:6080/service/plugins/policies/service/2" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
+curl -i -s -u admin:admin "http://localhost:6080/service/plugins/policies/service/2" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
 # Now upload the modified policy back to Ranger
 printf "\nLoad the ranger_hive_policy.json file back up to Ranger to save settings:\n"
-curl -s -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/ranger_hive_policy.json "http://localhost:6080/service/plugins/policies/${POLICY_ID}"
+curl -i -s -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/ranger_hive_policy.json "http://localhost:6080/service/plugins/policies/${POLICY_ID}"
 
 
-printf "\nNext, setup the HDFS Service in Ranger:\n"
+printf "\n\nNext, setup the HDFS Service in Ranger:\n"
 curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d "
 {
     \"configs\": {
@@ -484,37 +484,37 @@ curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type
 }
 "
 
-printf "\nCreate a new HDFS policy, granting admin,hive,willie user to /test folder:\n"
+printf "\n\nCreate a new HDFS policy, granting admin,hive,willie user to /test folder:\n"
 curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
 {"policyType":"0","name":"test","isEnabled":true,"isAuditEnabled":true,"description":"","resources":{"path":{"values":["/test"],"isRecursive":true}},"policyItems":[{"users":["admin","hive","willie"],"accesses":[{"type":"read","isAllowed":true},{"type":"write","isAllowed":true},{"type":"execute","isAllowed":true}]}],"denyPolicyItems":[],"allowExceptions":[],"denyExceptions":[],"service":"singlenode_hadoop"}'
 
 
 # Create a new PII policy in Ranger Tags
-printf "\nCreate a new PII policy in Ranger Tags:\n"
+printf "\n\nCreate a new PII policy in Ranger Tags:\n"
 curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
 {"policyType":"0","name":"PII","isEnabled":true,"isAuditEnabled":true,"description":"","resources":{"tag":{"values":["PII"],"isRecursive":false,"isExcludes":false}},"policyItems":[{"users":["willie"],"accesses":[{"type":"hdfs:read","isAllowed":true},{"type":"hdfs:write","isAllowed":true},{"type":"hdfs:execute","isAllowed":true},{"type":"hive:select","isAllowed":true},{"type":"hive:update","isAllowed":true},{"type":"hive:create","isAllowed":true},{"type":"hive:drop","isAllowed":true},{"type":"hive:alter","isAllowed":true},{"type":"hive:index","isAllowed":true},{"type":"hive:lock","isAllowed":true},{"type":"hive:all","isAllowed":true},{"type":"hive:read","isAllowed":true},{"type":"hive:write","isAllowed":true},{"type":"hive:repladmin","isAllowed":true},{"type":"hive:serviceadmin","isAllowed":true}]}],"denyPolicyItems":[],"allowExceptions":[],"denyExceptions":[],"service":"singlenode_tag"}'
 
 
 # Create a new group in Ranger called DataEngineers
-printf "\nCreate a new group in Ranger called DataEngineers:\n"
-NEWGROUP_ID=$(curl -s -H "Accept: application/json" -H 'Content-Type: application/json' -u admin:admin -X POST http://localhost:6080/service/xusers/secure/groups -d '{"name":"DataEngineers","description":""}' | jq -r '.id')
+printf "\n\nCreate a new group in Ranger called DataEngineers:\n"
+NEWGROUP_ID=$(curl -i -s -H "Accept: application/json" -H 'Content-Type: application/json' -u admin:admin -X POST http://localhost:6080/service/xusers/secure/groups -d '{"name":"DataEngineers","description":""}' | jq -r '.id')
 # Find the userID for Willie
 printf "\nFind the user Willie:\n"
-USER_ID=$(curl -s -H "Accept: application/json" -u admin:admin -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") | .id')
+USER_ID=$(curl -i -s -H "Accept: application/json" -u admin:admin -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") | .id')
 GROUPID_LIST=$(curl -s -H "Accept: application/json" -u admin:admin -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") ' | jq '.groupIdList[]')
 # And add him to the DataEngineers group
 printf "\nAnd add him to the DataEngineers group:\n"
-curl -s -H "Content-Type: application/json" -u admin:admin -X PUT 'http://localhost:6080/service/xusers/secure/users/willie' -d "{\"id\":${USER_ID},\"name\":\"willie\",\"firstName\":\"willie\",\"lastName\":\"willie\",\"description\":\"willie - add from Unix box\",\"groupIdList\":[${GROUPID_LIST},${NEWGROUP_ID}],\"groupNameList\":[\"willie\", \"DataEngineers\"],\"status\":1,\"isVisible\":1,\"userSource\":1,\"userRoleList\":[\"ROLE_USER\"],\"passwordConfirm\":\"\",\"emailAddress\":\"\"}"
+curl -i -s -H "Accept: application/json" -H "Content-Type: application/json" -u admin:admin -X PUT 'http://localhost:6080/service/xusers/secure/users/willie' -d "{\"id\":${USER_ID},\"name\":\"willie\",\"firstName\":\"willie\",\"lastName\":\"willie\",\"description\":\"willie - add from Unix box\",\"groupIdList\":[${GROUPID_LIST},${NEWGROUP_ID}],\"groupNameList\":[\"willie\", \"DataEngineers\"],\"status\":1,\"isVisible\":1,\"userSource\":1,\"userRoleList\":[\"ROLE_USER\"],\"passwordConfirm\":\"\",\"emailAddress\":\"\"}"
 
 # In Ranger, enable Deny Conditions in Resource Policies, and add RangerTimeOfDayMatcher evaluator to policyConditions[]
-printf "\nIn Ranger, enable Deny Conditions in Resource Policies, add RangerTimeOfDayMatcher evaluator to policyConditions[]:\n"
-curl -s -u admin:admin -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
+printf "\n\nIn Ranger, enable Deny Conditions in Resource Policies, add RangerTimeOfDayMatcher evaluator to policyConditions[]:\n"
+curl -i -s -u admin:admin -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
 # Load the hive.json file back up to Ranger to save settings
-printf "\nLoad the hive.json file back up to Ranger to save settings:\n"
+printf "\n\nLoad the hive.json file back up to Ranger to save settings:\n"
 curl -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/hive.json 'http://localhost:6080/service/public/v2/api/servicedef/name/hive'
 
 # Setup Infra-SOLR with a ranger_audits collection 
-printf "\nSetup Infra-SOLR with a ranger_audits collection:\n"
+printf "\n\nSetup Infra-SOLR with a ranger_audits collection:\n"
 cd /usr/hdp/2*/ranger-admin/contrib/solr_for_audit_setup
 /usr/lib/ambari-infra-solr/bin/solr zk -upconfig -n ranger_audits -d conf -z localhost:2181/infra-solr
 /usr/lib/ambari-infra-solr/bin/solr create_collection -c ranger_audits -d conf -shards 1 -replicationFactor 1
@@ -577,7 +577,7 @@ curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/
 
 # Change the admin user password as well
 printf "\nChange admin user's password in Ambari:\n"
-curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://192.168.1.11:8080/api/v1/users/admin -d "{\"Users/password\":\"${RAND_PW}\",\"Users/old_password\":\"admin\"}"
+curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/api/v1/users/admin -d "{\"Users/password\":\"${RAND_PW}\",\"Users/old_password\":\"admin\"}"
 
 
 # Clear SOLR index:
@@ -594,5 +594,7 @@ echo "#                                                          " | tee -a /roo
 echo "# KDC REALM: $REALM                                        " | tee -a /root/ambari_install.txt 
 echo "# principal: admin/admin@$REALM                            " | tee -a /root/ambari_install.txt
 echo "# password:  hadoop                                        " | tee -a /root/ambari_install.txt
+echo "#                                                          " | tee -a /root/ambari_install.txt
+echo "# Username/Password info stored in /root/ambari_install.txt"
 echo "###########################################################" | tee -a /root/ambari_install.txt
 echo ""
