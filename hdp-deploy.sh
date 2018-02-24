@@ -26,11 +26,24 @@ fi
 
 rm -f /etc/yum.repos.d/local-hwx.repo
 
+# Find out if we are running on a specific cloud provider
+yum -y install dmidecode curl
+dmidecode | grep -i amazon
+if [ $? -eq 0 ] # we are on AWS
+then
+    FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+fi
+
 # Check that we are running on CentOS7
 cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
 if [ $? -ne 0 ]
 then
-    echo "This system must be a CentOS7/RHEL7 based installation. Quitting...."
+    echo "This system must be a CentOS7/RHEL7 based installation."
+    echo ""
+    echo "Suggested cloud image names:"
+    echo "AWS: ami-ee6a718a"
+    echo ""
+    echo "Quitting...."
     exit 1;
 fi
 
