@@ -26,6 +26,14 @@ fi
 
 rm -f /etc/yum.repos.d/local-hwx.repo
 
+# Check that we are running on CentOS7
+cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
+if [ $? -ne 0 ]
+then
+    echo "This system must be a CentOS7/RHEL7 based installation. Quitting...."
+    exit 1;
+fi
+
 # Generate a 10 char random password
 RAND_STRING=$(echo $(date) | md5sum)
 RAND_PW=$(echo ${RAND_STRING:0:10})
@@ -52,6 +60,7 @@ enabled=1
 gpgcheck=0
 EOF
 fi
+# Import HDP GPG key
 rpm --import http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.6.1.3/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins
 
 # Install required packages
