@@ -41,7 +41,17 @@ then
     echo "This system must be a CentOS7/RHEL7 based installation."
     echo ""
     echo "Suggested cloud image names:"
-    echo "AWS: ami-ee6a718a"
+    echo "AWS: ami-ee6a718a "
+    echo ""
+    echo "Quitting...."
+    exit 1;
+fi
+
+# Check that we are root user
+whoami | grep root > /dev/null
+if [ $? -ne 0 ]
+then
+    echo "You need to run this script as the root user, or with sudo."
     echo ""
     echo "Quitting...."
     exit 1;
