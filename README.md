@@ -56,7 +56,7 @@ hdp-deploy will fully install the following components:
   * Ranger
   * SmartSense
   * Spark2
-  * Driud
+  * Druid
   * Superset
   
 Over and above, hdp-deploy will also:
@@ -65,11 +65,11 @@ Over and above, hdp-deploy will also:
   * Update Ambari admin to a random password
   * Download an example "employees" database, and import to MySQL
   * Sqoop the above employees database and tables from MySQL to Hive
-  * Capture the Sqoop lineage and Hive tables in Atlas' metadata
+  * Capture the Sqoop lineage and Hive tables in Atlas metadata
   * Setup Atlas with a PII tag, and associate it with the "employees" Hive table
   * Setup Ranger Tags, and create a single tag policy for PII 
   * Allow the user willie access to the PII tag in Ranger Tag policy
-  * Create a new Ranger HDFS policy for the directory /test, allowing willie access to this directory
+  * Create a new Ranger HDFS policy for the directory /test, allowing user willie access to this directory
   * Create a new group in Ranger called DataEngineers, and add user willie to this group
   * Enable time-based policies in Ranger, allowing you to specify during which time a policy is allowed/denied. Eg: 8am-5pm
   * Setup Ranger SOLR audits in Ambari Infra 
