@@ -14,9 +14,9 @@ git clone https://github.com/willie-engelbrecht/hdp-deploy.git
 ./hdp-deploy/hdp-deploy.sh
 ```
 
-By default hdp-deploy will setup and download repositories from directly from the internet. However it is also possible to use hdp-deply in an "offline" mode, by editing the repo.env file and changing the value to 0 for:
+By default hdp-deploy will setup and download repositories from directly from the internet. However it is also possible to use hdp-deply in an "offline" mode, by editing the repo.env file and changing the value to 1 for:
 ```
-USE_LOCAL_REPO=0
+USE_LOCAL_REPO=1
 ```
 
 And then updating the local repo locations:
