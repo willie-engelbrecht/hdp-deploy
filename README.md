@@ -1,6 +1,10 @@
 # hdp-deploy
 hdp-deploy is a bash script that will install a full single node HDP cluster using Ambari. The aim is that hdp-deploy will always install the latest version of HDP and Ambari which is currently available for download from the [Hortonworks website](https://hortonworks.com/downloads/)
 
+### Requirements
+Your system needs at minimum 32GB RAM and at least 50GB disk space. 48GB Ram or more is preferred. 
+An Internet connection is also required, as hdp-deploy will download various files required to perform the automated installation.
+
 ### Usage
 The general gist to use hdp-deploy:
 ```
