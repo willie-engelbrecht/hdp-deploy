@@ -58,20 +58,16 @@ then
 fi
 
 # Generate a 10 char random password
-RAND_STRING=$(echo $(date) | md5sum)
+RAND_STRING=$(echo "$(date)$(hostname)" | md5sum);
 RAND_PW=$(echo ${RAND_STRING:0:10})
 
 # Setup the Ambari repository
 source repo.env
+yum -y install wget
 
 if [ ${USE_LOCAL_REPO} -eq 0 ]
 then
-   yum -y install wget
    wget -q -O - ${AMBARI_UPSTREAM} > /etc/yum.repos.d/ambari.repo 
-#   wget -q -O - ${HDP_UPSTREAM} > /etc/yum.repos.d/hdp.repo
-#   wget -q -O - ${HDPUTILS_UPSTREAM} > /etc/yum.repos.d/hdp-utils.repo
-#   wget -q -O - ${HDPGPL_UPSTREAM} > /etc/yum.repos.d/hdp.gpl.repo
-   wget -q -O - ${VDF_UPSTREAM} > ${REPODEV}
 fi
 if [ ${USE_LOCAL_REPO} -eq 1 ]
 then
@@ -324,18 +320,19 @@ done
 echo ""
 
 ##########################################################
+# Load a new repo version definition
+cat ${REPODEV} > /tmp/${REPODEV}
 if [ ${USE_LOCAL_REPO} -eq 0 ]
 then
-    curl --user admin:admin -H "X-Requested-By:ambari" -X POST http://localhost:8080/api/v1/version_definitions -d "{\"VersionDefinition\": { \"version_url\": \"${VDF_UPSTREAM}\" } }"
+    curl --user admin:admin -H "X-Requested-By:ambari" -X POST http://localhost:8080/api/v1/version_definitions -d "{\"VersionDefinition\": { \"version_url\": \"file:/tmp/${REPODEV}\" } }"
 fi
 
 if [ ${USE_LOCAL_REPO} -eq 1 ]
 then
-    # Load a new repo version definition
-    sed "s;xxHDPxx;${HDP};g" ${REPODEV} > /tmp/${REPODEV}
-    sed -i "s;xxHDPUTILSxx;${HDPUTILS};g" /tmp/${REPODEV}
-    sed -i "s;xxHDFxx;${HDF};g" /tmp/${REPODEV}
-    sed -i "s;xxHDPGPLxx;${HDPGPL};g" /tmp/${REPODEV}
+    # Replace the external repo locations with internal ones
+    sed -i "s;${HDP_UPSTREAM};${HDP};" /tmp/${REPODEV}
+    sed -i "s;${HDPUTILS_UPSTREAM};${HDPUTILS};" /tmp/${REPODEV}
+    sed -i "s;${HDPGPL_UPSTREAM};${HDPGPL};" /tmp/${REPODEV}
 
     curl --user admin:admin -H "X-Requested-By:ambari" -X POST http://localhost:8080/api/v1/version_definitions -d "{\"VersionDefinition\": { \"version_url\": \"file:/tmp/${REPODEV}\" } }"
     echo ""
@@ -356,13 +353,13 @@ fi
 
 # Tell Ambari the blueprint of the cluster
 sleep 1
-echo "Loading the Blueprint in Ambari"
+echo "Loading the Blueprint in Ambari:"
 sed  "s/xxFQDNxx/$FQDN/g" singlenode.ranger.blueprint > /tmp/singlenode.ranger.blueprint
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/blueprints/$CLUSTER_NAME -d @/tmp/singlenode.ranger.blueprint
 
 # Tell Ambari the hostmapping and this will also start the installation
 sleep 1
-echo "Loading the Hostmapping and starting the install"
+echo "Loading the Hostmapping and starting the install:"
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/clusters/$CLUSTER_NAME -d @/tmp/singlenode.hostmapping
 
 ##########################################################
@@ -375,7 +372,7 @@ echo -n "Waiting for the HDP install to finish ...."
 until [ ${RET} -eq 0 ]
 do
   echo -n .
-  sleep 5;
+  sleep 10;
   ISHDFSRUNNING=$(hdfs dfs -ls / 2> /dev/null | grep user > /dev/null 2> /dev/null)
   RET=$?
 done
