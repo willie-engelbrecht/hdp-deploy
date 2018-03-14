@@ -24,7 +24,11 @@ then
     cd $(dirname $(pwd)/$0)
 fi
 
+# Local stuff 
 rm -f /etc/yum.repos.d/local-hwx.repo
+
+# Disable auditd
+systemctl disable auditd
 
 # Find out if we are running on a specific cloud provider
 yum -y install dmidecode curl
