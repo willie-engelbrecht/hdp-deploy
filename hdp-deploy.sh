@@ -509,7 +509,7 @@ curl -i -s -H "Accept: application/json" -H "Content-Type: application/json" -u 
 
 # In Ranger, enable Deny Conditions in Resource Policies, and add RangerTimeOfDayMatcher evaluator to policyConditions[]
 printf "\n\nIn Ranger, enable Deny Conditions in Resource Policies, add RangerTimeOfDayMatcher evaluator to policyConditions[]:\n"
-curl -i -s -u admin:admin -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
+curl -s -u admin:admin -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
 # Load the hive.json file back up to Ranger to save settings
 printf "\n\nLoad the hive.json file back up to Ranger to save settings:\n"
 curl -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/hive.json 'http://localhost:6080/service/public/v2/api/servicedef/name/hive'
