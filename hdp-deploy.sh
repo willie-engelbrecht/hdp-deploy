@@ -1,16 +1,3 @@
-# Setup some variables 
-export HDP_VERSION_SHORT="2.6"
-export UTILS_VERSION="1.1.0.22"
-export HDF_VERSION="3.0"
-export SOLR_VERSION="SOLR-2.6-100"
-
-export OS="redhat7"
-export CLUSTER_NAME="singlenode"
-export FQDNx="$(hostname -I)" # There will be an annoying space added to the end. Next command will clear it with xargs
-export FQDN=$(echo $FQDNx | xargs)
-
-export REALM=HWX.COM
-
 # Check that we "in" our directory
 ls -l singlenode.ranger.blueprint > /dev/null 2> /dev/null
 if [ $? -ne 0 ]
@@ -23,6 +10,22 @@ then
     #exit 1;
     cd $(dirname $(pwd)/$0)
 fi
+
+# Setup some variables 
+source repo.env
+export HDP_VERSION_SHORT="2.6"
+export HDP_VERSION_LONG=$(echo "${REPODEV}" | sed 's/HDP-\|.xml//g')
+export UTILS_VERSION="1.1.0.22"
+export HDF_VERSION="3.0"
+export SOLR_VERSION="SOLR-2.6-100"
+
+export OS="redhat7"
+export CLUSTER_NAME="singlenode"
+export FQDNx="$(hostname -I)" # There will be an annoying space added to the end. Next command will clear it with xargs
+export FQDN=$(echo $FQDNx | xargs)
+
+export REALM=HWX.COM
+
 
 # Local stuff 
 rm -f /etc/yum.repos.d/local-hwx.repo
@@ -66,14 +69,13 @@ RAND_STRING=$(echo "$(date)$(hostname)" | md5sum);
 RAND_PW=$(echo ${RAND_STRING:0:10})
 
 # Setup the Ambari repository
-source repo.env
 yum -y install wget
 
-if [ ${USE_LOCAL_REPO} -eq 0 ]
+if [ "${USE_LOCAL_REPO}" == "0" ]
 then
    wget -q -O - ${AMBARI_UPSTREAM} > /etc/yum.repos.d/ambari.repo 
 fi
-if [ ${USE_LOCAL_REPO} -eq 1 ]
+if [ "${USE_LOCAL_REPO}" == "1" ]
 then
     cat > /etc/yum.repos.d/local-ambari.repo << EOF
 [LocalAmbari]
@@ -140,6 +142,7 @@ cat > /var/lib/ambari-agent/public_hostname.sh << EOF
 echo '$FQDN'
 EOF
 chmod 775 /var/lib/ambari-agent/public_hostname.sh
+sed -i '53i force_https_protocol=PROTOCOL_TLSv1_2' /etc/ambari-agent/conf/ambari-agent.ini
 systemctl enable ambari-agent
 service ambari-agent restart
 
@@ -244,7 +247,7 @@ END
 cat > "/tmp/singlenode.hostmapping" << EOF
 {
   "blueprint":"singlenode",
-  "repository_version": "2.6.4.0-91",
+  "repository_version": "xxHDPVERSIONxx",
   "config_recommendation_strategy" : "ALWAYS_APPLY_DONT_OVERRIDE_CUSTOM_VALUES",
   "default_password":"admin",
   "host_groups":[
@@ -255,11 +258,12 @@ cat > "/tmp/singlenode.hostmapping" << EOF
   ]
 }
 EOF
+sed -i "s/xxHDPVERSIONxx/${HDP_VERSION_LONG}/" /tmp/singlenode.hostmapping
 
 cat > "/tmp/singlenode.krb.hostmapping" << EOF
 {
   "blueprint":"singlenode",
-  "repository_version": "2.6.4.0-91",
+  "repository_version": "xxHDPVERSIONxx",
   "config_recommendation_strategy" : "ALWAYS_APPLY_DONT_OVERRIDE_CUSTOM_VALUES",
   "default_password":"admin",
   "host_groups":[
@@ -284,11 +288,13 @@ cat > "/tmp/singlenode.krb.hostmapping" << EOF
        ]
 }
 EOF
+sed -i "s/xxHDPVERSIONxx/${HDP_VERSION_LONG}/" /tmp/singlenode.krb.hostmapping
 
 echo ""
 echo "##################################################"
 echo "# BASH VARIABLES:                                "
 echo "# HDP_VERSION_SHORT=$HDP_VERSION_SHORT           "
+echo "# HDP_VERSION_LONG=$HDP_VERSION_LONG             "
 echo "# UTILS_VERSION=$UTILS_VERSION                   "
 #echo "# HDF_VERSION=$HDF_VERSION                       "
 #echo "# SOLR_VERSION=$SOLR_VERSION                     "
@@ -599,3 +605,5 @@ echo "#                                                          " | tee -a /roo
 echo "# Username/Password info stored in /root/ambari_install.txt"
 echo "###########################################################" | tee -a /root/ambari_install.txt
 echo ""
+
+cat /root/ambari_install.txt  >> /root/.bash_profile
