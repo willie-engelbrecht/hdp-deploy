@@ -606,4 +606,7 @@ echo "# Username/Password info stored in /root/ambari_install.txt"
 echo "###########################################################" | tee -a /root/ambari_install.txt
 echo ""
 
+echo "echo '" >> /root/.bash_profile
 cat /root/ambari_install.txt  >> /root/.bash_profile
+echo "'" >> /root/.bash_profile
+
