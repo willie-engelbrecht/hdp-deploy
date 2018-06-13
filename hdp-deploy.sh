@@ -142,6 +142,7 @@ cat > /var/lib/ambari-agent/public_hostname.sh << EOF
 echo '$FQDN'
 EOF
 chmod 775 /var/lib/ambari-agent/public_hostname.sh
+# See: https://community.hortonworks.com/articles/188269/javapython-updates-and-ambari-agent-tls-settings.html
 sed -i '53i force_https_protocol=PROTOCOL_TLSv1_2' /etc/ambari-agent/conf/ambari-agent.ini
 systemctl enable ambari-agent
 service ambari-agent restart
