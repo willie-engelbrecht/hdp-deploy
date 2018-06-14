@@ -86,7 +86,7 @@ gpgcheck=0
 EOF
 fi
 # Import HDP GPG key
-rpm --import http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.6.1.3/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins
+rpm --import ${GPG_KEY}
 
 # Install required packages
 yum -y install yum-utils deltarpm
