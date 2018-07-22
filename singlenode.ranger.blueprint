@@ -24,7 +24,21 @@
         {
             "yarn-site": {
                 "yarn.node-labels.enabled" : "true",
+                "yarn.scheduler.maximum-allocation-mb" : "4096",
                 "yarn.resourcemanager.scheduler.monitor.enable" : "true"
+            }
+        },
+        {
+            "mapred-site" : {
+            "properties" : {
+                "yarn.app.mapreduce.am.resource.mb" : "2048"
+            }
+        },
+        {
+            "tez-site" : {
+                "properties" : {
+                    "tez.am.resource.memory.mb" : "2048",
+                }
             }
         },
         {
