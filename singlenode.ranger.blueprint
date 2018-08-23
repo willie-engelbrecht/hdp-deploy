@@ -24,7 +24,17 @@
         {
             "yarn-site": {
                 "yarn.node-labels.enabled" : "true",
+                "yarn.scheduler.maximum-allocation-mb" : "4096",
                 "yarn.resourcemanager.scheduler.monitor.enable" : "true"
+            }
+        },
+        {
+            "mapred-site" : {
+                "properties" : {
+                    "yarn.app.mapreduce.am.resource.mb" : "2048",
+                    "mapreduce.reduce.memory.mb" : "4096",
+                    "mapreduce.map.memory.mb" : "4096"
+                } 
             }
         },
         {
@@ -48,6 +58,13 @@
             }
         },
         {
+            "tez-site" : {
+                "properties" : {
+                    "tez.am.resource.memory.mb" : "2048"
+                }
+            }
+        },
+        {
             "admin-properties" : {
                 "properties" : {
                     "DB_FLAVOR" : "MYSQL",
@@ -64,7 +81,11 @@
         {
             "ranger-env" : {
                 "properties" : {
-                    "ranger_admin_password" : "admin",
+                    "ranger_admin_password" : "xxxADMINPWxx",
+                    "admin_password": "xxxADMINPWxx",
+                    "rangertagsync_user_password": "xxxADMINPWxx",
+                    "rangerusersync_user_password": "xxxADMINPWxx",
+                    "keyadmin_user_password": "xxxADMINPWxx",
                     "create_db_dbuser" : "true",
                     "ranger-hdfs-plugin-enabled" : "Yes",
                     "ranger-hive-plugin-enabled" : "Yes"
@@ -164,6 +185,13 @@
             }
         },
         {
+            "atlas-env" : {
+                "properties" : {
+                    "atlas.admin.password" : "xxxADMINPWxx"
+                }
+            }
+        },
+        {
             "ams-grafana-env": {
                 "properties": {
                     "metrics_grafana_username": "admin",
@@ -249,9 +277,6 @@
             "name" : "all",
             "components" : [
                 {
-                    "name" : "SLIDER"
-                },
-                {
                     "name" : "PIG"
                 },
                 {
@@ -273,16 +298,13 @@
                     "name" : "HBASE_CLIENT"
                 },
                 {
-                    "name" : "HCAT"
-                },
-                {
-                    "name" : "WEBHCAT_SERVER"
-                },
-                {
                     "name" : "AMBARI_SERVER"
                 },
                 {
                     "name" : "APP_TIMELINE_SERVER"
+                },
+                {
+                    "name" : "TIMELINE_READER"
                 },
                 {
                     "name" : "HDFS_CLIENT"
@@ -410,6 +432,6 @@
            ],
     "Blueprints" : {
         "stack_name" : "HDP",
-        "stack_version" : "2.6"
+        "stack_version" : "3.0"
     }
 }

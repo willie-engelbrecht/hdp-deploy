@@ -13,7 +13,7 @@ fi
 
 # Setup some variables 
 source repo.env
-export HDP_VERSION_SHORT="2.6"
+export HDP_VERSION_SHORT="3.0"
 export HDP_VERSION_LONG=$(echo "${REPODEV}" | sed 's/HDP-\|.xml//g')
 export UTILS_VERSION="1.1.0.22"
 export HDF_VERSION="3.0"
@@ -29,6 +29,10 @@ export REALM=HWX.COM
 
 # Local stuff 
 rm -f /etc/yum.repos.d/local-hwx.repo
+
+# Add the docker yum repo
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
 
 # Disable auditd
 systemctl disable auditd
@@ -93,11 +97,14 @@ yum -y install yum-utils deltarpm
 yum-complete-transaction --cleanup-only
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
-yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel
+yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel docker-ce
 
 sleep 2;
 systemctl enable atd
 systemctl start atd
+
+systemctl enable docker
+systemctl start docker
 
 adduser willie
 echo ${RAND_PW} | passwd --stdin willie
@@ -366,6 +373,7 @@ fi
 sleep 1
 echo "Loading the Blueprint in Ambari:"
 sed  "s/xxFQDNxx/$FQDN/g" singlenode.ranger.blueprint > /tmp/singlenode.ranger.blueprint
+sed  -i "s/xxxADMINPWxx/$RAND_PW/g" /tmp/singlenode.ranger.blueprint
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/blueprints/$CLUSTER_NAME -d @/tmp/singlenode.ranger.blueprint
 
 # Tell Ambari the hostmapping and this will also start the installation
@@ -400,6 +408,9 @@ su - hdfs -c "hdfs dfs -chown -R willie:willie /user/willie"
 su - hdfs -c "hdfs dfs -mkdir /test"
 su - hdfs -c "hdfs dfs -chmod 700 /test"
 
+# Remove hdfs from the banned MR users list
+sed -i 's/hdfs,//' /etc/hadoop/conf/container-executor.cfg
+
 # Disable Ambari alert definitions: NameNode Heap Usage (Daily)
 DEF_ID=$(curl -s -u admin:admin -H GET 'http://localhost:8080/api/v1/clusters/singlenode/alerts?format=groupedSummary' | jq '.alerts_summary_grouped[] | select(.definition_name == "increase_nn_heap_usage_daily") | .definition_id')
 curl --user admin:admin -H "X-Requested-By:ambari" -X PUT http://localhost:8080/api/v1/clusters/singlenode/alert_definitions/${DEF_ID} -d '{"AlertDefinition/enabled":false}'
@@ -432,101 +443,130 @@ echo ""
 
 # Create Tag service in Ranger
 printf "\nConfigure Tag service in Ranger:\n"
-curl -i -u admin:admin -H "Content-type:application/json" -X POST  http://localhost:6080/service/plugins/services -d '{"name":"singlenode_tag","description":"","isEnabled":true,"configs":{},"type":"tag"}'
+curl -i -u admin:${RAND_PW} -H "Content-type:application/json" -X POST  http://localhost:6080/service/plugins/services -d '{"name":"singlenode_tag","description":"","isEnabled":true,"configs":{},"type":"tag"}'
 
 # Create some Ranger policies for
-printf "\n\nConfigure Hive service in Ranger:\n"
-curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d '
+#printf "\n\nConfigure Hive service in Ranger:\n"
+#curl -u admin:${RAND_PW} -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d '
+#{
+#    "configs": {
+#        "ambari.service.check.user": "ambari-qa",
+#        "jdbc.driverClassName": "org.apache.hive.jdbc.HiveDriver",
+#        "jdbc.url": "jdbc:hive2://localhost:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2",
+#        "password": "hive",
+#        "policy.download.auth.users": "hive",
+#        "policy.grantrevoke.auth.users": "hive",
+#        "tag.download.auth.users": "hive",
+#        "username": "hive"
+#    },
+#    "description": "Hive",
+#    "isEnabled": true,
+#    "name": "singlenode_hive",
+#    "tagService": "singlenode_tag",
+#    "type": "hive"
+#}
+#'
+
+printf "\n\nModify an existing Hive policy, granting admin user access to all Databases, Tables, Columns:\n"
+# First get the Policy ID
+printf "\nFirst get the Policy ID for: all - database, table, column:\n"
+POLICY_ID=$(curl -s -u admin:${RAND_PW} http://localhost:6080/service/plugins/policies/service/2 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
+# Then get just that policy, add the "admin" user to the "users" section, and save to disk
+printf "\nThen get just that policy, add the "admin" user to the "users" section, and save to disk:\n"
+curl -s -u admin:${RAND_PW} "http://localhost:6080/service/plugins/policies/service/2" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
+# Now upload the modified policy back to Ranger
+printf "\nLoad the ranger_hive_policy.json file back up to Ranger to save settings:\n"
+curl -i -s -H 'Content-Type: application/json' -u admin:${RAND_PW} -X PUT --data @/tmp/ranger_hive_policy.json "http://localhost:6080/service/plugins/policies/${POLICY_ID}"
+
+
+printf "\n\nNext, setup the HDFS Service in Ranger:\n"
+#curl -u admin:${RAND_PW} -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d "
+#{
+#    \"configs\": {
+#        \"ambari.service.check.user\": \"ambari-qa\",
+#        \"commonNameForCertificate\": \"sandbox.hortonworks.com\",
+#        \"fs.default.name\": \"hdfs://${FQDN}:8020\",
+#        \"hadoop.rpc.protection\": \"authentication\",
+#        \"hadoop.security.auth_to_local\": \"DEFAULT\",
+#        \"hadoop.security.authentication\": \"simple\",
+#        \"hadoop.security.authorization\": \"false\",
+#        \"password\": \"hdfs\",
+#        \"policy.download.auth.users\": \"hdfs\",
+#        \"tag.download.auth.users\": \"hdfs\",
+#        \"username\": \"hdfs\"
+#    },
+#    \"description\": \"HDFS\",
+#    \"isEnabled\": true,
+#    \"name\": \"singlenode_hadoop\",
+#    \"tagService\": \"singlenode_tag\",
+#    \"type\": \"hdfs\"
+#}
+#"
+curl -u admin:${RAND_PW} -i -s -X PUT -H "Accept: application/json" -H "Content-Type: application/json" 'http://localhost:6080/service/plugins/services/2' -d '
 {
     "configs": {
-        "ambari.service.check.user": "ambari-qa",
         "jdbc.driverClassName": "org.apache.hive.jdbc.HiveDriver",
         "jdbc.url": "jdbc:hive2://localhost:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2",
-        "password": "hive",
+        "password": "*****",
         "policy.download.auth.users": "hive",
         "policy.grantrevoke.auth.users": "hive",
         "tag.download.auth.users": "hive",
         "username": "hive"
     },
-    "description": "Hive",
+    "createTime": 1531749971000,
+    "createdBy": "amb_ranger_admin",
+    "description": "hive repo",
+    "id": 2,
     "isEnabled": true,
     "name": "singlenode_hive",
-    "tagService": "singlenode_tag",
-    "type": "hive"
+    "policyUpdateTime": 1534190920000,
+    "policyVersion": 9,
+    "tagUpdateTime": 1534181407000,
+    "tagVersion": 8,
+    "type": "hive",
+    "updateTime": 1534190920000,
+    "updatedBy": "Admin",
+    "version": 4,
+    "tagService":"singlenode_tag"
 }
 '
 
-printf "\n\nModify an existing Hive policy, granting admin user access to all Databases, Tables, Columns:\n"
-# First get the Policy ID
-printf "\nFirst get the Policy ID for: all - database, table, column:\n"
-POLICY_ID=$(curl -i -s -u admin:admin http://localhost:6080/service/plugins/policies/service/2 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
-# Then get just that policy, add the "admin" user to the "users" section, and save to disk
-printf "\nThen get just that policy, add the "admin" user to the "users" section, and save to disk:\n"
-curl -i -s -u admin:admin "http://localhost:6080/service/plugins/policies/service/2" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
-# Now upload the modified policy back to Ranger
-printf "\nLoad the ranger_hive_policy.json file back up to Ranger to save settings:\n"
-curl -i -s -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/ranger_hive_policy.json "http://localhost:6080/service/plugins/policies/${POLICY_ID}"
-
-
-printf "\n\nNext, setup the HDFS Service in Ranger:\n"
-curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/public/v2/api/service -d "
-{
-    \"configs\": {
-        \"ambari.service.check.user\": \"ambari-qa\",
-        \"commonNameForCertificate\": \"sandbox.hortonworks.com\",
-        \"fs.default.name\": \"hdfs://${FQDN}:8020\",
-        \"hadoop.rpc.protection\": \"authentication\",
-        \"hadoop.security.auth_to_local\": \"DEFAULT\",
-        \"hadoop.security.authentication\": \"simple\",
-        \"hadoop.security.authorization\": \"false\",
-        \"password\": \"hdfs\",
-        \"policy.download.auth.users\": \"hdfs\",
-        \"tag.download.auth.users\": \"hdfs\",
-        \"username\": \"hdfs\"
-    },
-    \"description\": \"HDFS\",
-    \"isEnabled\": true,
-    \"name\": \"singlenode_hadoop\",
-    \"tagService\": \"singlenode_tag\",
-    \"type\": \"hdfs\"
-}
-"
-
 printf "\n\nCreate a new HDFS policy, granting admin,hive,willie user to /test folder:\n"
-curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
+curl -u admin:${RAND_PW} -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
 {"policyType":"0","name":"test","isEnabled":true,"isAuditEnabled":true,"description":"","resources":{"path":{"values":["/test"],"isRecursive":true}},"policyItems":[{"users":["admin","hive","willie"],"accesses":[{"type":"read","isAllowed":true},{"type":"write","isAllowed":true},{"type":"execute","isAllowed":true}]}],"denyPolicyItems":[],"allowExceptions":[],"denyExceptions":[],"service":"singlenode_hadoop"}'
 
 
 # Create a new PII policy in Ranger Tags
 printf "\n\nCreate a new PII policy in Ranger Tags:\n"
-curl -u admin:admin -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
+curl -u admin:${RAND_PW} -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
 {"policyType":"0","name":"PII","isEnabled":true,"isAuditEnabled":true,"description":"","resources":{"tag":{"values":["PII"],"isRecursive":false,"isExcludes":false}},"policyItems":[{"users":["willie"],"accesses":[{"type":"hdfs:read","isAllowed":true},{"type":"hdfs:write","isAllowed":true},{"type":"hdfs:execute","isAllowed":true},{"type":"hive:select","isAllowed":true},{"type":"hive:update","isAllowed":true},{"type":"hive:create","isAllowed":true},{"type":"hive:drop","isAllowed":true},{"type":"hive:alter","isAllowed":true},{"type":"hive:index","isAllowed":true},{"type":"hive:lock","isAllowed":true},{"type":"hive:all","isAllowed":true},{"type":"hive:read","isAllowed":true},{"type":"hive:write","isAllowed":true},{"type":"hive:repladmin","isAllowed":true},{"type":"hive:serviceadmin","isAllowed":true}]}],"denyPolicyItems":[],"allowExceptions":[],"denyExceptions":[],"service":"singlenode_tag"}'
 
 
 # Create a new group in Ranger called DataEngineers
 printf "\n\nCreate a new group in Ranger called DataEngineers:\n"
-NEWGROUP_ID=$(curl -i -s -H "Accept: application/json" -H 'Content-Type: application/json' -u admin:admin -X POST http://localhost:6080/service/xusers/secure/groups -d '{"name":"DataEngineers","description":""}' | jq -r '.id')
+NEWGROUP_ID=$(curl -s -H "Accept: application/json" -H 'Content-Type: application/json' -u admin:${RAND_PW} -X POST http://localhost:6080/service/xusers/secure/groups -d '{"name":"DataEngineers","description":""}' | jq -r '.id')
 # Find the userID for Willie
 printf "\nFind the user Willie:\n"
-USER_ID=$(curl -i -s -H "Accept: application/json" -u admin:admin -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") | .id')
-GROUPID_LIST=$(curl -s -H "Accept: application/json" -u admin:admin -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") ' | jq '.groupIdList[]')
+USER_ID=$(curl -s -H "Accept: application/json" -u admin:${RAND_PW} -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") | .id')
+GROUPID_LIST=$(curl -s -H "Accept: application/json" -u admin:${RAND_PW} -H GET 'http://localhost:6080/service/xusers/users?sortBy=id' | jq '.vXUsers[] | select(.name == "willie") ' | jq '.groupIdList[]')
 # And add him to the DataEngineers group
 printf "\nAnd add him to the DataEngineers group:\n"
-curl -i -s -H "Accept: application/json" -H "Content-Type: application/json" -u admin:admin -X PUT 'http://localhost:6080/service/xusers/secure/users/willie' -d "{\"id\":${USER_ID},\"name\":\"willie\",\"firstName\":\"willie\",\"lastName\":\"willie\",\"description\":\"willie - add from Unix box\",\"groupIdList\":[${GROUPID_LIST},${NEWGROUP_ID}],\"groupNameList\":[\"willie\", \"DataEngineers\"],\"status\":1,\"isVisible\":1,\"userSource\":1,\"userRoleList\":[\"ROLE_USER\"],\"passwordConfirm\":\"\",\"emailAddress\":\"\"}"
+curl -i -s -H "Accept: application/json" -H "Content-Type: application/json" -u admin:${RAND_PW} -X PUT 'http://localhost:6080/service/xusers/secure/users/willie' -d "{\"id\":${USER_ID},\"name\":\"willie\",\"firstName\":\"willie\",\"lastName\":\"willie\",\"description\":\"willie - add from Unix box\",\"groupIdList\":[${GROUPID_LIST},${NEWGROUP_ID}],\"groupNameList\":[\"willie\", \"DataEngineers\"],\"status\":1,\"isVisible\":1,\"userSource\":1,\"userRoleList\":[\"ROLE_USER\"],\"passwordConfirm\":\"\",\"emailAddress\":\"\"}"
 
 # In Ranger, enable Deny Conditions in Resource Policies, and add RangerTimeOfDayMatcher evaluator to policyConditions[]
 printf "\n\nIn Ranger, enable Deny Conditions in Resource Policies, add RangerTimeOfDayMatcher evaluator to policyConditions[]:\n"
-curl -s -u admin:admin -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
+curl -s -u admin:${RAND_PW} -X GET 'http://localhost:6080/service/public/v2/api/servicedef/name/hive' | jq '.policyConditions = [{"itemId":1,"name":"time-of-the-day","description":"Time of the day","label":"Time of the day","evaluator":"org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher"}] | .options.enableDenyAndExceptionsInPolicies = "true"' > /tmp/hive.json
 # Load the hive.json file back up to Ranger to save settings
 printf "\n\nLoad the hive.json file back up to Ranger to save settings:\n"
-curl -H 'Content-Type: application/json' -u admin:admin -X PUT --data @/tmp/hive.json 'http://localhost:6080/service/public/v2/api/servicedef/name/hive'
+curl -H 'Content-Type: application/json' -u admin:${RAND_PW} -X PUT --data @/tmp/hive.json 'http://localhost:6080/service/public/v2/api/servicedef/name/hive'
 
 # Setup Infra-SOLR with a ranger_audits collection 
 printf "\n\nSetup Infra-SOLR with a ranger_audits collection:\n"
-cd /usr/hdp/2*/ranger-admin/contrib/solr_for_audit_setup
-/usr/lib/ambari-infra-solr/bin/solr zk -upconfig -n ranger_audits -d conf -z localhost:2181/infra-solr
-/usr/lib/ambari-infra-solr/bin/solr create_collection -c ranger_audits -d conf -shards 1 -replicationFactor 1
-
+su -u infra-solr -c "
+cd /usr/hdp/3*/ranger-admin/contrib/solr_for_audit_setup;
+/usr/lib/ambari-infra-solr/bin/solr zk -upconfig -n ranger_audits -d conf -z localhost:2181/infra-solr;
+/usr/lib/ambari-infra-solr/bin/solr create_collection -c ranger_audits -d conf -shards 1 -replicationFactor 1;
+"
 
 # Creating Hive tables and Atlas lineage
 printf "\nCreating Hive tables and Atlas lineage:\n"
@@ -542,46 +582,92 @@ cd test_db-master
 
 mysql -u root -padmin < employees.sql
 
-su - hdfs -c "hive -e 'create database employees'"
+su - hive -c "beeline -n hive -u jdbc:hive2://localhost:10000 -e 'create database employees'"
 
-# Sqoop import from MySQL to Hive
-su - hdfs -c "sqoop import --hive-database employees --table employees --connect jdbc:mysql://localhost:3306/employees --username root --password admin --hive-import -m 1"
-   
-su - hdfs -c "sqoop import --hive-database employees --table departments --connect jdbc:mysql://localhost:3306/employees --username root --password admin --hive-import -m 1"
-   
-su - hdfs -c "sqoop import --hive-database employees --table dept_emp --connect jdbc:mysql://localhost:3306/employees --username root --password admin --hive-import -m 1"
+# Create a tmp space for our sqoop commands
+su - hive -c "hdfs dfs -mkdir /tmp/hive"
+
+# Sqoop just the data to HDFS
+su - hive -c "sqoop import --query 'select * from employees WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/employees_txt -m 1"
+
+su - hive -c "sqoop import --query 'select * from departments WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/departments_txt -m 1"
+
+su - hive -c "sqoop import --query 'select * from dept_emp WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/dept_emp_txt -m 1"
+
+# Create the three temporary txt tables in Hive
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'CREATE EXTERNAL TABLE employees.employees_txt(
+   emp_no int,
+   birth_date string,
+   first_name string,
+   last_name string,
+   gender char(1),
+   hire_date string)
+   ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY ","
+   STORED AS TEXTFILE
+   LOCATION "/tmp/hive/employees_txt";'
+
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'CREATE EXTERNAL TABLE employees.departments_txt(
+   dept_no string,
+   dept_name string)
+   ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY ","
+   STORED AS TEXTFILE
+   LOCATION "/tmp/hive/departments_txt";'
+
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'CREATE EXTERNAL TABLE employees.dept_emp_txt(
+   emp_no int,
+   dept_no char(4),
+   from_date string,
+   to_date string)
+   ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY ","
+   STORED AS TEXTFILE
+   LOCATION "/tmp/hive/dept_emp_txt";'
+
+# Convert the txt tables to ORC
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'create table employees.employees as select * from employees.employees_txt'
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'create table employees.departments as select * from employees.departments_txt'
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'create table employees.dept_emp as select * from employees.dept_emp_txt'
+
+# Then drop the txt tables
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'drop table employees.employees_txt'
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'drop table employees.departments_txt'
+beeline -n hive -u jdbc:hive2://localhost:10000 -e 'drop table employees.dept_emp_txt'
 
 # Join the three tables together
-su - hdfs -c "hive -e \"use employees; create table emp_dept_flat stored as orc as select e.emp_no, concat(e.last_name, ', ', e.first_name) as full_name, e.first_name, e.last_name, e.birth_date, e.gender, e.hire_date, d.dept_no, d.dept_name, de.from_date, de.to_date from employees e, departments d, dept_emp de where e.emp_no = de.emp_no and de.dept_no = d.dept_no\""
+su - hive -c "beeline -n hive -u jdbc:hive2://localhost:10000 -e \"use employees; create table emp_dept_flat stored as orc as select e.emp_no, concat(e.last_name, ', ', e.first_name) as full_name, e.first_name, e.last_name, e.birth_date, e.gender, e.hire_date, d.dept_no, d.dept_name, de.from_date, de.to_date from employees e, departments d, dept_emp de where e.emp_no = de.emp_no and de.dept_no = d.dept_no\""
 
 # Create a view by joining two tables together
-su - hdfs -c "hive -e \"use employees; create view employee_employment_date as select employees.*, dept_emp.from_date, dept_emp.to_date from employees, dept_emp where employees.emp_no = dept_emp.emp_no\""
+su - hive -c "beeline -n hive -u jdbc:hive2://localhost:10000 -e \"use employees; create view employee_employment_date as select employees.*, dept_emp.from_date, dept_emp.to_date from employees, dept_emp where employees.emp_no = dept_emp.emp_no\""
 
 # Create another view by joining the previous view and underlying table together. This makes for a nice lineage graph
-su - hdfs -c "hive -e \"use employees; create view employee_and_department as select employee_employment_date.first_name, employee_employment_date.last_name, emp_dept_flat.dept_name from employee_employment_date, emp_dept_flat where employee_employment_date.emp_no = emp_dept_flat.emp_no\""
+su - hive -c "beeline -n hive -u jdbc:hive2://localhost:10000 -e \"use employees; create view employee_and_department as select employee_employment_date.first_name, employee_employment_date.last_name, emp_dept_flat.dept_name from employee_employment_date, emp_dept_flat where employee_employment_date.emp_no = emp_dept_flat.emp_no\""
 
 
 # In Atlas, create a PII tag
 printf "\nCreate PII tag in Atlas\n"
-curl -i -u admin:admin -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/types/typedefs?type=classification -d '{"classificationDefs":[{"name":"PII","description":"","superTypes":[],"attributeDefs":[]}],"entityDefs":[],"enumDefs":[],"structDefs":[]}'
+curl -i -u "admin:${RAND_PW}" -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/types/typedefs?type=classification -d '{"classificationDefs":[{"name":"PII","description":"","superTypes":[],"attributeDefs":[]}],"entityDefs":[],"enumDefs":[],"structDefs":[]}'
 
 # In Atlas, find out the GUID of the employees.employees table, so that we can use it in the next curl call
-cat > '/tmp/at.job' << 'EOF'
-GUID=$(curl -s -k -u admin:admin -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/search/basic -d '{"excludeDeletedEntities":true,"entityFilters":null,"tagFilters":null,"attributes":[],"query":"employees.employees","limit":25,"offset":0,"typeName":"hive_table","classification":null}' | jq -r ".entities[0].guid");
+cat > "/tmp/at.job" << EOF
+GUID=\$(curl -s -k -u "admin:${RAND_PW}" -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/search/basic -d '{"excludeDeletedEntities":true,"entityFilters":null,"tagFilters":null,"attributes":[],"query":"employees.employees","limit":25,"offset":0,"typeName":"hive_table","classification":null}' | jq -r '.entities[0].guid');
 
 # In Atlas, assign the PII to the employees table 
 echo "Assign the PII tag to the employees entity (table) in Atlas"
-curl -i -u admin:admin -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/entity/bulk/classification -d "{\"classification\":{\"typeName\":\"PII\",\"attributes\":{}},\"entityGuids\":[\"$GUID\"]}";
+curl -i -u "admin:${RAND_PW}" -H "Content-type:application/json" -X POST http://localhost:21000/api/atlas/v2/entity/bulk/classification -d "{\"classification\":{\"typeName\":\"PII\",\"attributes\":{}},\"entityGuids\":[\"\${GUID}\"]}";
+
+#docker run centos/httpd-24-centos7:latest
 EOF
-cat /tmp/at.job | at now +5min
+cat /tmp/at.job | at now +1min
 
 # In Ambari, create the willie user
 printf "\nAdd user willie to Ambari:\n"
 curl -i -u admin:admin -H "X-Requested-By: ambari" -X POST http://localhost:8080/api/v1/users -d "{\"Users/user_name\":\"willie\",\"Users/password\":\"${RAND_PW}\",\"Users/active\":true,\"Users/admin\":false}"
 
 # Then, add user willie to the Hive view
-printf "\nAdd user willie to Ambari Hive View:\n"
-curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/api/v1/views/HIVE/versions/1.5.0/instances/AUTO_HIVE_INSTANCE/privileges -d '[{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"willie","principal_type":"USER"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.ADMINISTRATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.OPERATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"SERVICE.OPERATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"SERVICE.ADMINISTRATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.USER","principal_type":"ROLE"}}]'
+#printf "\nAdd user willie to Ambari Hive View:\n"
+#curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/api/v1/views/HIVE/versions/1.5.0/instances/AUTO_HIVE_INSTANCE/privileges -d '[{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"willie","principal_type":"USER"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.ADMINISTRATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.OPERATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"SERVICE.OPERATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"SERVICE.ADMINISTRATOR","principal_type":"ROLE"}},{"PrivilegeInfo":{"permission_name":"VIEW.USER","principal_name":"CLUSTER.USER","principal_type":"ROLE"}}]'
 
 # Change the admin user password as well
 printf "\nChange admin user's password in Ambari:\n"
