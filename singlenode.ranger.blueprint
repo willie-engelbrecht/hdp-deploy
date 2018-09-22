@@ -60,7 +60,8 @@
         {
             "tez-site" : {
                 "properties" : {
-                    "tez.am.resource.memory.mb" : "2048"
+                    "tez.am.resource.memory.mb" : "2048",
+                    "tez.task.resource.memory.mb" : "2048"
                 }
             }
         },
@@ -267,7 +268,14 @@
                     "superset_admin_email" : "root@localhost",
                     "superset_admin_firstname" : "admin",
                     "superset_admin_user" : "admin",
-                    "superset_admin_password" : "admin"
+                    "superset_admin_password" : "xxxADMINPWxx"
+                }
+            }
+        },
+        {
+            "superset" : {
+                "properties" : {
+                    "SUPERSET_WEBSERVER_PORT" : "9089"
                 }
             }
         }

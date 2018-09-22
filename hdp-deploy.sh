@@ -30,12 +30,13 @@ export REALM=HWX.COM
 # Local stuff 
 rm -f /etc/yum.repos.d/local-hwx.repo
 
-# Add the docker yum repo
-yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-
 
 # Disable auditd
 systemctl disable auditd
+
+# Set long timeout for hung tasks
+echo "kernel.hung_task_timeout_secs=999999999" >> /etc/sysctl.d/99-sysctl.conf
+sysctl -p
 
 # Find out if we are running on a specific cloud provider
 yum -y install dmidecode curl
@@ -96,8 +97,9 @@ rpm --import ${GPG_KEY}
 yum -y install yum-utils deltarpm
 yum-complete-transaction --cleanup-only
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
-yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel docker-ce
+yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel docker-ce container-selinux
 
 sleep 2;
 systemctl enable atd
@@ -439,6 +441,23 @@ done
 echo ""
 echo "Hiveserve2 is running ...."
 echo ""
+
+# Create a local auth file for beeline to use for automated authentication
+cat > /etc/hive/conf/beeline-hs2-connection.xml << END
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+<property>
+  <name>beeline.hs2.connection.user</name>
+  <value>hive</value>
+</property>
+<property>
+  <name>beeline.hs2.connection.password</name>
+  <value>hive</value>
+</property>
+</configuration>
+END
+
 
 
 # Create Tag service in Ranger
