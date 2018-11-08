@@ -178,6 +178,7 @@ create database streamline;
 create database superset;
 create database druid character set utf8 collate utf8_general_ci;
 create database rangerkms;
+create database streamsmsgmgr;
 
 create user 'hive'@'%' identified by 'hive';
 create user 'rangeradmin'@'%' identified by 'rangeradmin';
@@ -190,7 +191,6 @@ create user 'rangeradmin'@'localhost' identified by 'rangeradmin';
 
 grant all privileges on hive.* to 'hive'@'localhost' with grant option;
 grant all privileges on ranger.* to 'rangeradmin'@'localhost' with grant option;
-
 
 create user 'registry'@'localhost' identified by 'registry';
 create user 'registry'@'%' identified by 'registry';
@@ -221,6 +221,12 @@ create user 'rangerkms'@'%' identified by 'rangerkms';
 
 grant all privileges on rangerkms.* to 'rangerkms'@'localhost' with grant option;
 grant all privileges on rangerkms.* to 'rangerkms'@'%' with grant option;
+
+create user 'streamsmsgmgr'@'localhost' identified by 'streamsmsgmgr';
+create user 'streamsmsgmgr'@'%' identified by 'streamsmsgmgr';
+
+grant all privileges on streamsmsgmgr.* to 'streamsmsgmgr'@'localhost' with grant option;
+grant all privileges on streamsmsgmgr.* to 'streamsmsgmgr'@'%' with grant option;
 
 flush privileges;
 EOF
