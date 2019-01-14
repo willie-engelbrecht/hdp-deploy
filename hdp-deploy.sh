@@ -13,7 +13,7 @@ fi
 
 # Setup some variables 
 source repo.env
-export HDP_VERSION_SHORT="3.0"
+export HDP_VERSION_SHORT="3.1"
 export HDP_VERSION_LONG=$(echo "${REPODEV}" | sed 's/HDP-\|.xml//g')
 export UTILS_VERSION="1.1.0.22"
 export HDF_VERSION="3.0"
@@ -587,7 +587,7 @@ curl -H 'Content-Type: application/json' -u admin:${RAND_PW} -X PUT --data @/tmp
 
 # Setup Infra-SOLR with a ranger_audits collection 
 printf "\n\nSetup Infra-SOLR with a ranger_audits collection:\n"
-su -u infra-solr -c "
+su - infra-solr -c "
 cd /usr/hdp/3*/ranger-admin/contrib/solr_for_audit_setup;
 /usr/lib/ambari-infra-solr/bin/solr zk -upconfig -n ranger_audits -d conf -z localhost:2181/infra-solr;
 /usr/lib/ambari-infra-solr/bin/solr create_collection -c ranger_audits -d conf -shards 1 -replicationFactor 1;

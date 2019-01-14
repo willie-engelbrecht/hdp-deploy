@@ -24,7 +24,7 @@
         {
             "yarn-site": {
                 "yarn.node-labels.enabled" : "true",
-                "yarn.scheduler.maximum-allocation-mb" : "4096",
+                "yarn.scheduler.maximum-allocation-mb" : "36864",
                 "yarn.resourcemanager.scheduler.monitor.enable" : "true"
             }
         },
@@ -60,7 +60,7 @@
         {
             "tez-site" : {
                 "properties" : {
-                    "tez.am.resource.memory.mb" : "2048",
+                    "tez.am.resource.memory.mb" : "1024",
                     "tez.task.resource.memory.mb" : "2048"
                 }
             }
@@ -440,6 +440,6 @@
            ],
     "Blueprints" : {
         "stack_name" : "HDP",
-        "stack_version" : "3.0"
+        "stack_version" : "3.1"
     }
 }
