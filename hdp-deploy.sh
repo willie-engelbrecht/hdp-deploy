@@ -598,7 +598,7 @@ printf "\nCreating Hive tables and Atlas lineage:\n"
 cd /tmp
 if [ ${USE_LOCAL_REPO} -eq 1 ]
 then
-     wget http://192.168.1.105/hwx/master.zip
+     wget http://192.168.0.105/hwx/master.zip
 else
      wget https://github.com/datacharmer/test_db/archive/master.zip
 fi   	

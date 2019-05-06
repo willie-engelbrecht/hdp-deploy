@@ -23,17 +23,17 @@ USE_LOCAL_REPO=1
 
 And then updating the local repo locations to something on your local network:
 ```
-export AMBARI=http://192.168.1.105/hwx/ambari-latest/
-export HDP=http://192.168.1.105/hwx/HDP-latest/
-export HDPUTILS=http://192.168.1.105/hwx/HDP-UTILS-latest/
-export HDPGPL=http://192.168.1.105/hwx/HDP-GPL/
+export AMBARI=http://192.168.0.105/hwx/ambari-latest/
+export HDP=http://192.168.0.105/hwx/HDP-latest/
+export HDPUTILS=http://192.168.0.105/hwx/HDP-UTILS-latest/
+export HDPGPL=http://192.168.0.105/hwx/HDP-GPL/
 ```
 
 When hdp-deploy is finished, it will print the following to screen, as well as save it to /root/ambari_install.txt
 ```
 ###########################################################
 # YOUR CLUSTER IS NOW READY!
-# Ambari: http://192.168.1.11:8080
+# Ambari: http://192.168.0.11:8080
 # username: admin    password: 4d4a6e1a7e
 # username: willie   password: 4d4a6e1a7e
 #
