@@ -28,6 +28,15 @@
             }
         },
         {
+            "mapred-site" : {
+                "properties" : {
+                    "yarn.app.mapreduce.am.resource.mb" : "2048",
+                    "mapreduce.reduce.memory.mb" : "4096",
+                    "mapreduce.map.memory.mb" : "4096"
+                } 
+            }
+        },
+        {
             "hive-env" : {
                 "properties" : {
                     "hive_database" : "Existing MySQL Database",
@@ -48,6 +57,14 @@
             }
         },
         {
+            "tez-site" : {
+                "properties" : {
+                    "tez.am.resource.memory.mb" : "1024",
+                    "tez.task.resource.memory.mb" : "2048"
+                }
+            }
+        },
+        {
             "admin-properties" : {
                 "properties" : {
                     "DB_FLAVOR" : "MYSQL",
@@ -64,7 +81,7 @@
         {
             "ranger-env" : {
                 "properties" : {
-                    "ranger_admin_password" : "admin",
+                    "ranger_admin_password" : "xxxADMINPWxx",
                     "create_db_dbuser" : "true",
                     "ranger-hdfs-plugin-enabled" : "Yes",
                     "ranger-hive-plugin-enabled" : "Yes"
@@ -150,9 +167,23 @@
             }
         },
         {
+            "kafka-broker" : {
+                "properties" : {
+                    "offsets.topic.replication.factor" : "1"
+                }
+            }
+        },
+        {
             "spark2-env" : {
                 "properties" : {
                     "spark_daemon_memory" : "512"
+                }
+            }
+        },
+        {
+            "atlas-env" : {
+                "properties" : {
+                    "atlas.admin.password" : "xxxADMINPWxx"
                 }
             }
         },
