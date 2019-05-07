@@ -96,7 +96,7 @@ yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-serve
 rpm -qa | grep libtirpc-devel
 if [ $? -ne 0 ]
 then
-    rpm -ivh http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
+    yum install -y http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
 fi
 
 sleep 2;
