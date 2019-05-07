@@ -380,6 +380,11 @@ fi
 # Tell Ambari the blueprint of the cluster
 sleep 1
 echo "Loading the Blueprint in Ambari:"
+echo "PWD: `pwd`"
+echo "whoami: `whoami`"
+echo "FQDN: $FQDN"
+echo "Random PW: $RAND_PW"
+set -x
 sed  "s/xxFQDNxx/$FQDN/g" singlenode.ranger.blueprint > /tmp/singlenode.ranger.blueprint
 sed  -i "s/xxxADMINPWxx/$RAND_PW/g" /tmp/singlenode.ranger.blueprint
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/blueprints/$CLUSTER_NAME -d @/tmp/singlenode.ranger.blueprint
