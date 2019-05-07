@@ -69,11 +69,11 @@ RAND_PW=$(echo ${RAND_STRING:0:10})
 source repo.env
 yum -y install wget
 
-if [ ${USE_LOCAL_REPO} -eq 0 ]
+if [ "${USE_LOCAL_REPO}" == "0" ]
 then
    wget -q -O - ${AMBARI_UPSTREAM} > /etc/yum.repos.d/ambari.repo 
 fi
-if [ ${USE_LOCAL_REPO} -eq 1 ]
+if [ "${USE_LOCAL_REPO}" == "1" ]
 then
     cat > /etc/yum.repos.d/local-ambari.repo << EOF
 [LocalAmbari]
@@ -140,6 +140,7 @@ cat > /var/lib/ambari-agent/public_hostname.sh << EOF
 echo '$FQDN'
 EOF
 chmod 775 /var/lib/ambari-agent/public_hostname.sh
+sed -i '53i force_https_protocol=PROTOCOL_TLSv1_2' /etc/ambari-agent/conf/ambari-agent.ini
 systemctl enable ambari-agent
 service ambari-agent restart
 
@@ -359,6 +360,7 @@ fi
 sleep 1
 echo "Loading the Blueprint in Ambari:"
 sed  "s/xxFQDNxx/$FQDN/g" singlenode.ranger.blueprint > /tmp/singlenode.ranger.blueprint
+sed  -i "s/xxxADMINPWxx/$RAND_PW/g" /tmp/singlenode.ranger.blueprint
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/blueprints/$CLUSTER_NAME -d @/tmp/singlenode.ranger.blueprint
 
 # Tell Ambari the hostmapping and this will also start the installation
