@@ -23,6 +23,7 @@ export OS="redhat7"
 export CLUSTER_NAME="singlenode"
 export FQDNx="$(hostname -I)" # There will be an annoying space added to the end. Next command will clear it with xargs
 export FQDN=$(echo $FQDNx | xargs)
+export FQDN=$(hostname -f)
 
 export REALM=HWX.COM
 
@@ -46,7 +47,7 @@ then
     FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
     if [ $? -ne 0]
     then
-        FQDN=$(echo $FQDNx | xargs)
+        FQDN=$(hostname -f)
     fi
 fi
 
@@ -108,7 +109,7 @@ yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-serve
 rpm -qa | grep libtirpc-devel
 if [ $? -ne 0 ]
 then
-    rpm -ivh http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
+    yum -y install  http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
 fi
 
 sleep 2;
@@ -394,7 +395,7 @@ echo "PWD: `pwd`"
 echo "whoami: `whoami`"
 echo "FQDN: $FQDN"
 echo "Random PW: $RAND_PW"
-set -x
+#set -x
 sed  "s/xxFQDNxx/$FQDN/g" singlenode.ranger.blueprint > /tmp/singlenode.ranger.blueprint
 sed  -i "s/xxxADMINPWxx/$RAND_PW/g" /tmp/singlenode.ranger.blueprint
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/blueprints/$CLUSTER_NAME -d @/tmp/singlenode.ranger.blueprint
