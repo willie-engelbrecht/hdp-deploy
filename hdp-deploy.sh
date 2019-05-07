@@ -44,6 +44,10 @@ dmidecode | grep -i amazon
 if [ $? -eq 0 ] # we are on AWS
 then
     FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+    if [ $? -ne 0]
+    then
+        FQDN=$(echo $FQDNx | xargs)
+    fi
 fi
 
 # Check that we are running on CentOS7
@@ -100,6 +104,12 @@ yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarc
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
 yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel docker-ce container-selinux
+
+rpm -qa | grep libtirpc-devel
+if [ $? -ne 0 ]
+then
+    rpm -ivh http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
+fi
 
 sleep 2;
 systemctl enable atd
