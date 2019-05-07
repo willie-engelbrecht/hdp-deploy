@@ -122,7 +122,7 @@
             "ranger-tagsync-site" : {
                 "properties" : {
                     "ranger.tagsync.source.atlasrest.username" : "admin",
-                    "ranger.tagsync.source.atlasrest.endpoint" : "http://xxFQDNxx:21000",
+                    "ranger.tagsync.source.atlasrest.endpoint" : "http://localhost:21000",
                     "ranger.tagsync.dest.ranger.endpoint" : "{{ranger_external_url}}",
                     "ranger.tagsync.source.atlasrest" : "true"
                 }
