@@ -93,6 +93,12 @@ yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarc
 
 yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel
 
+rpm -qa | grep libtirpc-devel
+if [ $? -ne 0 ]
+then
+    rpm -ivh http://mirror.centos.org/centos/7/os/x86_64/Packages/libtirpc-devel-0.2.4-0.15.el7.x86_64.rpm
+fi
+
 sleep 2;
 systemctl enable atd
 systemctl start atd
