@@ -50,6 +50,7 @@ then
         FQDN=$(hostname -f)
     fi
 fi
+export FQDN=$(hostname -f)
 
 # Check that we are running on CentOS7
 cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
