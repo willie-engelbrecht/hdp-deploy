@@ -45,7 +45,7 @@ dmidecode | grep -i amazon
 if [ $? -eq 0 ] # we are on AWS
 then
     FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-    if [ $? -ne 0]
+    if [ $? -ne 0 ]
     then
         FQDN=$(hostname -f)
     fi
