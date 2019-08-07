@@ -48,6 +48,7 @@ then
     if [ $? -ne 0 ]
     then
     #    FQDN=$(hostname -f)
+        echo ""
     fi
 fi
 
