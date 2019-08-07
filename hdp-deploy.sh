@@ -21,9 +21,9 @@ export SOLR_VERSION="SOLR-2.6-100"
 
 export OS="redhat7"
 export CLUSTER_NAME="singlenode"
-export FQDNx="$(hostname -I)" # There will be an annoying space added to the end. Next command will clear it with xargs
+export FQDNx="$(hostname -f)" # There will be an annoying space added to the end. Next command will clear it with xargs
 export FQDN=$(echo $FQDNx | xargs)
-export FQDN=$(hostname -f)
+#export FQDN=$(hostname -f)
 
 export REALM=HWX.COM
 
@@ -47,10 +47,9 @@ then
     FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
     if [ $? -ne 0 ]
     then
-        FQDN=$(hostname -f)
+    #    FQDN=$(hostname -f)
     fi
 fi
-export FQDN=$(hostname -f)
 
 # Check that we are running on CentOS7
 cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
@@ -105,7 +104,7 @@ yum-complete-transaction --cleanup-only
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
-yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel docker-ce container-selinux
+yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel #docker-ce container-selinux
 
 rpm -qa | grep libtirpc-devel
 if [ $? -ne 0 ]
