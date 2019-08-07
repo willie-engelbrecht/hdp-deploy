@@ -42,15 +42,15 @@ sysctl -p
 # Find out if we are running on a specific cloud provider
 yum -y install dmidecode curl
 dmidecode | grep -i amazon
-if [ $? -eq 0 ] # we are on AWS
-then
-    FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-    if [ $? -ne 0 ]
-    then
-    #    FQDN=$(hostname -f)
-        echo ""
-    fi
-fi
+#if [ $? -eq 0 ] # we are on AWS
+#then
+#    FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+#    if [ $? -ne 0 ]
+#    then
+#    #    FQDN=$(hostname -f)
+#        echo ""
+#    fi
+#fi
 
 # Check that we are running on CentOS7
 cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
