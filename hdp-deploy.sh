@@ -41,16 +41,16 @@ sysctl -p
 
 # Find out if we are running on a specific cloud provider
 yum -y install dmidecode curl
-dmidecode | grep -i amazon
-#if [ $? -eq 0 ] # we are on AWS
-#then
+dmidecode | grep -i 'Asset Tag: Amazon EC2'
+if [ $? -eq 0 ] # we are on AWS
+then
 #    FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-#    if [ $? -ne 0 ]
-#    then
-#    #    FQDN=$(hostname -f)
-#        echo ""
-#    fi
-#fi
+    export FQDN=$(curl ipinfo.io/hostname)
+    if [ $? -ne 0 ]
+    then
+        export FQDN=$(curl ipinfo.io/ip)
+    fi
+fi
 
 # Check that we are running on CentOS7
 cat /etc/os-release | grep VERSION_ID | grep 7 > /dev/null;
@@ -430,6 +430,10 @@ su - hdfs -c "hdfs dfs -mkdir /user/admin"
 su - hdfs -c "hdfs dfs -chown -R admin:admin /user/admin"
 su - hdfs -c "hdfs dfs -mkdir /user/willie"
 su - hdfs -c "hdfs dfs -chown -R willie:willie /user/willie"
+su - hdfs -c "hdfs dfs -mkdir /user/root"
+su - hdfs -c "hdfs dfs -chown -R root:root /user/root"
+su - hdfs -c "hdfs dfs -mkdir /user/hdfs"
+su - hdfs -c "hdfs dfs -chown -R hdfs:hdfs /user/hdfs"
 su - hdfs -c "hdfs dfs -mkdir /test"
 su - hdfs -c "hdfs dfs -chmod 700 /test"
 
@@ -719,6 +723,14 @@ curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/
 # Clear SOLR index:
 #curl "http://${FQDN}:8886/solr/hadoop_logs_shard0_replica1/update?stream.body=<delete><query>*:*</query></delete>&commit=true"
 #curl "http://${FQDN}:8886/solr/hadoop_logs_shard1_replica1/update?stream.body=<delete><query>*:*</query></delete>&commit=true"
+
+
+# Deploy David Streever's HDP-cli
+cd /root
+wget https://github.com/dstreev/hadoop-cli/releases/download/ISSUE_10_1/hadoop.cli-2.0.19-SNAPSHOT-3.1.tar.gz
+tar xzvf hadoop.cli-2.0.19-SNAPSHOT-3.1.tar.gz
+cd hadoop-cli-3.1/
+./setup.sh
 
 echo ""
 echo "###########################################################" | tee /root/ambari_install.txt
