@@ -727,8 +727,8 @@ curl -i -u admin:admin -H "X-Requested-By: ambari" -X PUT http://localhost:8080/
 
 # Deploy David Streever's HDP-cli
 cd /root
-wget https://github.com/dstreev/hadoop-cli/releases/download/ISSUE_10_1/hadoop.cli-2.0.19-SNAPSHOT-3.1.tar.gz
-tar xzvf hadoop.cli-2.0.19-SNAPSHOT-3.1.tar.gz
+wget https://github.com/dstreev/hadoop-cli/releases/download/2.0.21-SNAPSHOT/hadoop.cli-2.0.21-SNAPSHOT-3.1.tar.gz
+tar xzvf hadoop.cli-2.0.21-SNAPSHOT-3.1.tar.gz
 cd hadoop-cli-3.1/
 ./setup.sh
 

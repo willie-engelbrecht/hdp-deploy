@@ -150,7 +150,8 @@
             "hdfs-site" : {
                 "properties" : {
                     "dfs.namenode.http-address" : "0.0.0.0:50070",
-                    "dfs.replication" : "1"
+                    "dfs.replication" : "1",
+                    "dfs.replication.max" : "1"
                 }
             }
         },
