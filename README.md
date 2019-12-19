@@ -1,7 +1,7 @@
 # hdp-deploy
 hdp-deploy is a bash script that will install a full single node HDP cluster using Ambari. The aim is that hdp-deploy will always install the latest version of HDP and Ambari which is currently available for download from the [Hortonworks website](https://hortonworks.com/downloads/)
 
-Latest installation bits: Ambari 2.7.4.0 and HDP 3.1.4
+Latest installation bits: Ambari 2.7.4.0 and HDP 3.1.4.0
 
 ### Requirements
 hdp-deploy works only on CentOS 7 or RHEL 7. OpenJDK 8 will be used. 
