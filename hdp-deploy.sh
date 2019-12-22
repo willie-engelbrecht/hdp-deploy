@@ -16,21 +16,33 @@ source repo.env
 export HDP_VERSION_SHORT="3.1"
 export HDP_VERSION_LONG=$(echo "${REPODEV}" | sed 's/HDP-\|.xml//g')
 export UTILS_VERSION="1.1.0.22"
-export HDF_VERSION="3.0"
-export SOLR_VERSION="SOLR-2.6-100"
 
+export REALM=HWX.COM
 export OS="redhat7"
 export CLUSTER_NAME="singlenode"
 export FQDNx="$(hostname -f)" # There will be an annoying space added to the end. Next command will clear it with xargs
 export FQDN=$(echo $FQDNx | xargs)
 #export FQDN=$(hostname -f)
 
-export REALM=HWX.COM
-
+# Check if the paywall username/password has values, otherwise quit the script
+if [ -z "${PWALL_USER}" ]; 
+then
+    echo "Please set a valid username for your PWALL_USER in repo.env"
+    echo "Exiting..."
+    exit 1
+fi
+if [ -z "${PWALL_PASS}" ]; 
+then
+    echo "Please set a valid password for your PWALL_PASS in repo.env"
+    echo "Exiting..."
+    exit 1
+fi
 
 # Local stuff 
 rm -f /etc/yum.repos.d/local-hwx.repo
 
+# Set TimeZone
+ln -sf /usr/share/zoneinfo/${LOCALTZ} /etc/localtime
 
 # Disable auditd
 systemctl disable auditd
@@ -45,10 +57,10 @@ dmidecode | grep -i 'Asset Tag: Amazon EC2'
 if [ $? -eq 0 ] # we are on AWS
 then
 #    FQDN=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-    export FQDN=$(curl ipinfo.io/hostname)
+    export FQDN=$(curl -s ipinfo.io/hostname)
     if [ $? -ne 0 ]
     then
-        export FQDN=$(curl ipinfo.io/ip)
+        export FQDN=$(curl -s ipinfo.io/ip)
     fi
 fi
 
@@ -76,7 +88,7 @@ then
 fi
 
 # Generate a 10 char random password
-RAND_STRING=$(echo "$(date)$(hostname)" | md5sum);
+RAND_STRING="a$(echo "$(date)$(hostname)" | md5sum);"
 RAND_PW=$(echo ${RAND_STRING:0:10})
 
 # Setup the Ambari repository
@@ -85,7 +97,11 @@ yum -y install wget
 if [ "${USE_LOCAL_REPO}" == "0" ]
 then
    wget -q -O - ${AMBARI_UPSTREAM} > /etc/yum.repos.d/ambari.repo 
+   
+   # Add in the Paywall Username & Password into the repo strings
+   sed -i "s/archive/${PWALL_USER}:${PWALL_PASS}@archive/g" /etc/yum.repos.d/ambari.repo
 fi
+
 if [ "${USE_LOCAL_REPO}" == "1" ]
 then
     cat > /etc/yum.repos.d/local-ambari.repo << EOF
@@ -96,16 +112,23 @@ enabled=1
 gpgcheck=0
 EOF
 fi
+
+# Download the VDH file
+wget -q -O - ${VDF_UPSTREAM} > /tmp/${REPODEV}
+
+# Download the GPG key
+wget -q -O - ${GPG_KEY} > /root/HDP-GPG-KEY
+
 # Import HDP GPG key
-rpm --import ${GPG_KEY}
+rpm --import /root/HDP-GPG-KEY
 
 # Install required packages
 yum -y install yum-utils deltarpm
 yum-complete-transaction --cleanup-only
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+#yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
-yum -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel #docker-ce container-selinux
+yum --nogpgcheck -y install java-1.8.0-openjdk-devel ambari-agent ambari-server mariadb-server mariadb mysql-connector-java mlocate telnet krb5-server krb5-libs krb5-workstation at jq libtirpc-devel #postgresql10-server postgresql10 #docker-ce container-selinux
 
 rpm -qa | grep libtirpc-devel
 if [ $? -ne 0 ]
@@ -117,8 +140,51 @@ sleep 2;
 systemctl enable atd
 systemctl start atd
 
-systemctl enable docker
-systemctl start docker
+
+## Initialize Postgresql
+#/usr/pgsql-10/bin/postgresql-10-setup initdb
+#/usr/pgsql-9.6/bin/postgresql96-setup initdb
+
+# Setup the pg_hba.conf file
+#cat > /var/lib/pgsql/9.6/data/pg_hba.conf << EOF
+#cat > /var/lib/pgsql/10/data/pg_hba.conf << EOF
+#  # TYPE  DATABASE        USER            ADDRESS                 METHOD
+#  local   all             all                                     peer
+#  host    ambari          ambari          0.0.0.0/0               md5
+#  host    das             das             0.0.0.0/0               md5
+#EOF
+
+# Listen on all interfaces
+#sed -e 's,#listen_addresses = \x27localhost\x27,listen_addresses = \x27*\x27,g' -i /var/lib/pgsql/10/data/postgresql.conf
+#sed -e 's,#listen_addresses = \x27localhost\x27,listen_addresses = \x27*\x27,g' -i /var/lib/pgsql/9.6/data/postgresql.conf
+
+## Start Postgres service and config it for restart on reboot
+#systemctl enable postgresql-10
+#systemctl start postgresql-10
+#systemctl enable postgresql-9.6
+#systemctl start postgresql-9.6
+
+# Create a DDL file for all our DBs
+#cat > /tmp/create_ddl.sql << EOF
+#CREATE ROLE das LOGIN PASSWORD 'supersecret1';
+#CREATE ROLE ambari LOGIN PASSWORD 'supersecret1';
+#CREATE ROLE mapred LOGIN PASSWORD 'supersecret1';
+#CREATE DATABASE das OWNER das ENCODING 'UTF-8';
+#CREATE DATABASE ambari OWNER ambari ENCODING 'UTF-8';
+#EOF
+
+# Load the new users roles into Postgres
+#sudo -u postgres psql < /tmp/create_ddl.sql
+#su - postgres -c 'psql < /tmp/create_ddl.sql'
+#su - postgres -c 'psql ambari < /var/lib/ambari-server/resources/Ambari-DDL-Postgres-CREATE.sql'
+
+#cat > /tmp/create_grants.sql << EOF
+#GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ambari;
+#EOF
+#su - postgres -c 'psql ambari < /tmp/create_grants.sql'
+
+#systemctl enable docker
+#systemctl start docker
 
 adduser willie
 echo ${RAND_PW} | passwd --stdin willie
@@ -171,8 +237,18 @@ service ambari-agent restart
 # Setup the ambari-server
 printf "\nConfiguring ambari-server:\n"
 systemctl enable ambari-server
-ambari-server setup --enable-lzo-under-gpl-license -j /usr/lib/jvm/java-1.8.0-openjdk -s
+#ambari-server setup --enable-lzo-under-gpl-license -j /usr/lib/jvm/java-1.8.0-openjdk -s --database=postgres --databasehost=localhost --databaseport=5432 --databasename=ambari --databaseusername=ambari --databasepassword=supersecret1
+ambari-server setup --enable-lzo-under-gpl-license -j /usr/lib/jvm/java-1.8.0-openjdk -s 
+
+# Download the DAS LITE Mpack and add to Ambari
+wget -q -O - ${DAS_LITE} > /tmp/DAS-lite.tar.gz
+ambari-server install-mpack --mpack=/tmp/DAS-lite.tar.gz --force
+
+# Start and configure Ambari
 ambari-server start
+printf "\nRunning ambari-server setup...\n"
+ambari-server setup --jdbc-db=mysql --jdbc-driver="/usr/share/java/mysql-connector-java.jar"
+yum -y remove pgdg-redhat-repo-42.0-5.noarch
 
 # Make MySQL listen on localhost only
 printf "\nConfiguring MySQL/MariaDB:\n"
@@ -243,32 +319,6 @@ grant all privileges on streamsmsgmgr.* to 'streamsmsgmgr'@'%' with grant option
 flush privileges;
 EOF
 
-printf "\nRunning ambari-server setup...\n"
-ambari-server setup --jdbc-db=mysql --jdbc-driver="/usr/share/java/mysql-connector-java.jar"
-
-
-# Setup /tmp/hdf.json:
-cat > /tmp/hdp-utils.json << END
-{
-  "Repositories" : 
-  {
-    "base_url" : "$HDPUTILS",
-    "verify_base_url" : true,
-    "repo_name":"HDP-SOLR"
-  }
-}
-END
-
-cat > /tmp/hdf.json << END
-{
-  "Repositories" : 
-  {
-    "base_url" : "$HDF",
-    "verify_base_url" : true,
-    "repo_name":"HDF"
-  }
-}
-END
 
 
 # Setup hostmapping
@@ -351,46 +401,42 @@ echo ""
 #ambari-server restart
 
 # Waiting for Ambari server to start
-echo "Waiting for Ambari server at http://${FQDN}:8080 to respond to requests."
- while [ `curl -o /dev/null --silent --head --write-out '%{http_code}\n' http://${FQDN}:8080` != 200 ]; do
-  echo -n .; sleep 2
-done
-echo ""
+#echo "Waiting for Ambari server at http://${FQDN}:8080 to respond to requests."
+# while [ `curl -o /dev/null --silent --head --write-out '%{http_code}\n' http://${FQDN}:8080` != 200 ]; do
+#  echo -n .; sleep 2
+#done
+#echo ""
 
 ##########################################################
 # Load a new repo version definition
-cat ${REPODEV} > /tmp/${REPODEV}
+#cat ${REPODEV} > /tmp/${REPODEV}
 if [ ${USE_LOCAL_REPO} -eq 0 ]
 then
+    # Update the repo with Paywall logins
+    # Add in the Paywall Username & Password into the repo strings
+    sed -i "s/archive/${PWALL_USER}:${PWALL_PASS}@archive/g" /tmp/${REPODEV}
     curl --user admin:admin -H "X-Requested-By:ambari" -X POST http://localhost:8080/api/v1/version_definitions -d "{\"VersionDefinition\": { \"version_url\": \"file:/tmp/${REPODEV}\" } }"
 fi
 
 if [ ${USE_LOCAL_REPO} -eq 1 ]
 then
     # Replace the external repo locations with internal ones
-    sed -i "s;${HDP_UPSTREAM};${HDP};" /tmp/${REPODEV}
-    sed -i "s;${HDPUTILS_UPSTREAM};${HDPUTILS};" /tmp/${REPODEV}
-    sed -i "s;${HDPGPL_UPSTREAM};${HDPGPL};" /tmp/${REPODEV}
+#    sed -i "s;${HDP_UPSTREAM};${HDP};" /tmp/${REPODEV}
+#    sed -i "s;${HDPUTILS_UPSTREAM};${HDPUTILS};" /tmp/${REPODEV}
+#    sed -i "s;${HDPGPL_UPSTREAM};${HDPGPL};" /tmp/${REPODEV}
+    
+    sed -i "39s;.*;        <baseurl>${HDP}</baseurl>;" /tmp/${REPODEV}
+    sed -i "45s;.*;        <baseurl>${HDPGPL}</baseurl>;" /tmp/${REPODEV}
+    sed -i "54s;.*;        <baseurl>${HDPUTILS}</baseurl>;" /tmp/${REPODEV}
 
     curl --user admin:admin -H "X-Requested-By:ambari" -X POST http://localhost:8080/api/v1/version_definitions -d "{\"VersionDefinition\": { \"version_url\": \"file:/tmp/${REPODEV}\" } }"
     echo ""
 fi
 
 
-# Tell Ambari where the HDF repo is
-#sleep 1
-#echo "Loading the HDF repo in Ambari"
-#curl --user admin:admin -H X-Requested-By:autohdp -X PUT http://localhost:8080/api/v1/stacks/HDP/versions/${HDP_VERSION_SHORT}/operating_systems/${OS}/repositories/HDF-${HDF_VERSION} -d @/tmp/hdf.json
-
-
-# Tell Ambari where the SOLR repo is
-#sleep 1
-#echo "Loading the SOLR repo in Ambari"	
-#curl --user admin:admin -H X-Requested-By:autohdp -X PUT http://localhost:8080/api/v1/stacks/HDP/versions/${HDP_VERSION_SHORT}/operating_systems/${OS}/repositories/HDP-${SOLR_VERSION} -d @/tmp/hdp-utils.json
-
-
 # Tell Ambari the blueprint of the cluster
 sleep 1
+echo ""
 echo "Loading the Blueprint in Ambari:"
 echo "PWD: `pwd`"
 echo "whoami: `whoami`"
@@ -403,6 +449,7 @@ curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/
 
 # Tell Ambari the hostmapping and this will also start the installation
 sleep 1
+echo ""
 echo "Loading the Hostmapping and starting the install:"
 curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/api/v1/clusters/$CLUSTER_NAME -d @/tmp/singlenode.hostmapping
 
@@ -412,6 +459,7 @@ curl --user admin:admin -H X-Requested-By:autohdp -X POST http://localhost:8080/
 # Waiting for the HDP install to finish ....
 echo ""
 RET=-1
+echo "Installation URL to monitor: http://${FQDN}:8080"
 echo -n "Waiting for the HDP install to finish ...."
 until [ ${RET} -eq 0 ]
 do
@@ -439,23 +487,13 @@ su - hdfs -c "hdfs dfs -chmod 700 /test"
 
 # Remove hdfs from the banned MR users list
 sed -i 's/hdfs,//' /etc/hadoop/conf/container-executor.cfg
-
-# Disable Ambari alert definitions: NameNode Heap Usage (Daily)
-DEF_ID=$(curl -s -u admin:admin -H GET 'http://localhost:8080/api/v1/clusters/singlenode/alerts?format=groupedSummary' | jq '.alerts_summary_grouped[] | select(.definition_name == "increase_nn_heap_usage_daily") | .definition_id')
-curl --user admin:admin -H "X-Requested-By:ambari" -X PUT http://localhost:8080/api/v1/clusters/singlenode/alert_definitions/${DEF_ID} -d '{"AlertDefinition/enabled":false}'
-
-# Disable Ambari alert definitions: NameNode Heap Usage (Weekly)
-DEF_ID=$(curl -s -u admin:admin -H GET 'http://localhost:8080/api/v1/clusters/singlenode/alerts?format=groupedSummary' | jq '.alerts_summary_grouped[] | select(.definition_name == "increase_nn_heap_usage_weekly") | .definition_id')
-curl --user admin:admin -H "X-Requested-By:ambari" -X PUT http://localhost:8080/api/v1/clusters/singlenode/alert_definitions/${DEF_ID} -d '{"AlertDefinition/enabled":false}'
-
-# Disable Ambari alert definitions: HDFS Storage Capacity Usage (Daily)
-DEF_ID=$(curl -s -u admin:admin -H GET 'http://localhost:8080/api/v1/clusters/singlenode/alerts?format=groupedSummary' | jq '.alerts_summary_grouped[] | select(.definition_name == "namenode_increase_in_storage_capacity_usage_daily") | .definition_id')
-curl --user admin:admin -H "X-Requested-By:ambari" -X PUT http://localhost:8080/api/v1/clusters/singlenode/alert_definitions/${DEF_ID} -d '{"AlertDefinition/enabled":false}'
-
-# Disable Ambari alert definitions: HDFS Storage Capacity Usage (Weekly)
-DEF_ID=$(curl -s -u admin:admin -H GET 'http://localhost:8080/api/v1/clusters/singlenode/alerts?format=groupedSummary' | jq '.alerts_summary_grouped[] | select(.definition_name == "namenode_increase_in_storage_capacity_usage_weekly") | .definition_id')
-curl --user admin:admin -H "X-Requested-By:ambari" -X PUT http://localhost:8080/api/v1/clusters/singlenode/alert_definitions/${DEF_ID} -d '{"AlertDefinition/enabled":false}'
-
+  
+# Create the DAS role and Database. This mostly due to a chicken&egg problem. DAS insists on installing the DB itself, but won't create the user/db
+systemctl enable postgresql-9.6
+systemctl start postgresql-9.6
+sleep 2
+su - postgres -c "echo \"CREATE ROLE das LOGIN PASSWORD 'supersecret1'\" | psql -p 5435"
+su - postgres -c "echo \"CREATE DATABASE das OWNER das ENCODING 'UTF-8'\" | psql -p 5435"
 
 # Waiting for Ambari server to start
 echo "Waiting for Hiveserver2 at ${FQDN}:10000 to respond to requests."
@@ -488,8 +526,8 @@ END
 
 
 # Create Tag service in Ranger
-printf "\nConfigure Tag service in Ranger:\n"
-curl -i -u admin:${RAND_PW} -H "Content-type:application/json" -X POST  http://localhost:6080/service/plugins/services -d '{"name":"singlenode_tag","description":"","isEnabled":true,"configs":{},"type":"tag"}'
+#printf "\nConfigure Tag service in Ranger:\n"
+#curl -i -u admin:${RAND_PW} -H "Content-type:application/json" -X POST  http://localhost:6080/service/plugins/services -d '{"name":"singlenode_tag","description":"","isEnabled":true,"configs":{},"type":"tag"}'
 
 # Create some Ranger policies for
 #printf "\n\nConfigure Hive service in Ranger:\n"
@@ -516,10 +554,10 @@ curl -i -u admin:${RAND_PW} -H "Content-type:application/json" -X POST  http://l
 printf "\n\nModify an existing Hive policy, granting admin user access to all Databases, Tables, Columns:\n"
 # First get the Policy ID
 printf "\nFirst get the Policy ID for: all - database, table, column:\n"
-POLICY_ID=$(curl -s -u admin:${RAND_PW} http://localhost:6080/service/plugins/policies/service/2 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
+POLICY_ID=$(curl -s -u admin:${RAND_PW} http://localhost:6080/service/plugins/policies/service/3 | jq '.policies[] | select(.name == "all - database, table, column") | .id')
 # Then get just that policy, add the "admin" user to the "users" section, and save to disk
 printf "\nThen get just that policy, add the "admin" user to the "users" section, and save to disk:\n"
-curl -s -u admin:${RAND_PW} "http://localhost:6080/service/plugins/policies/service/2" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
+curl -s -u admin:${RAND_PW} "http://localhost:6080/service/plugins/policies/service/3" | jq ".policies[] | select(.id == ${POLICY_ID})" | jq '.policyItems[].users = ["hive","ambari-qa","admin"]' > /tmp/ranger_hive_policy.json
 # Now upload the modified policy back to Ranger
 printf "\nLoad the ranger_hive_policy.json file back up to Ranger to save settings:\n"
 curl -i -s -H 'Content-Type: application/json' -u admin:${RAND_PW} -X PUT --data @/tmp/ranger_hive_policy.json "http://localhost:6080/service/plugins/policies/${POLICY_ID}"
@@ -548,34 +586,34 @@ printf "\n\nNext, setup the HDFS Service in Ranger:\n"
 #    \"type\": \"hdfs\"
 #}
 #"
-curl -u admin:${RAND_PW} -i -s -X PUT -H "Accept: application/json" -H "Content-Type: application/json" 'http://localhost:6080/service/plugins/services/2' -d '
-{
-    "configs": {
-        "jdbc.driverClassName": "org.apache.hive.jdbc.HiveDriver",
-        "jdbc.url": "jdbc:hive2://localhost:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2",
-        "password": "*****",
-        "policy.download.auth.users": "hive",
-        "policy.grantrevoke.auth.users": "hive",
-        "tag.download.auth.users": "hive",
-        "username": "hive"
-    },
-    "createTime": 1531749971000,
-    "createdBy": "amb_ranger_admin",
-    "description": "hive repo",
-    "id": 2,
-    "isEnabled": true,
-    "name": "singlenode_hive",
-    "policyUpdateTime": 1534190920000,
-    "policyVersion": 9,
-    "tagUpdateTime": 1534181407000,
-    "tagVersion": 8,
-    "type": "hive",
-    "updateTime": 1534190920000,
-    "updatedBy": "Admin",
-    "version": 4,
-    "tagService":"singlenode_tag"
-}
-'
+#curl -u admin:${RAND_PW} -i -s -X PUT -H "Accept: application/json" -H "Content-Type: application/json" 'http://localhost:6080/service/plugins/services/2' -d '
+#{
+#    "configs": {
+#        "jdbc.driverClassName": "org.apache.hive.jdbc.HiveDriver",
+#        "jdbc.url": "jdbc:hive2://localhost:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2",
+#        "password": "*****",
+#        "policy.download.auth.users": "hive",
+#        "policy.grantrevoke.auth.users": "hive",
+#        "tag.download.auth.users": "hive",
+#        "username": "hive"
+#    },
+#    "createTime": 1531749971000,
+#    "createdBy": "amb_ranger_admin",
+#    "description": "hive repo",
+#    "id": 2,
+#    "isEnabled": true,
+#    "name": "singlenode_hive",
+#    "policyUpdateTime": 1534190920000,
+#    "policyVersion": 9,
+#    "tagUpdateTime": 1534181407000,
+#    "tagVersion": 8,
+#    "type": "hive",
+#    "updateTime": 1534190920000,
+#    "updatedBy": "Admin",
+#    "version": 4,
+#    "tagService":"singlenode_tag"
+#}
+#'
 
 printf "\n\nCreate a new HDFS policy, granting admin,hive,willie user to /test folder:\n"
 curl -u admin:${RAND_PW} -i -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:6080/service/plugins/policies -d '
@@ -635,10 +673,13 @@ su - hive -c "hdfs dfs -mkdir /tmp/hive"
 
 # Sqoop just the data to HDFS
 su - hive -c "sqoop import --query 'select * from employees WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/employees_txt -m 1"
+rm -f /home/hive/./QueryResult.java
 
 su - hive -c "sqoop import --query 'select * from departments WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/departments_txt -m 1"
+rm -f /home/hive/./QueryResult.java
 
 su - hive -c "sqoop import --query 'select * from dept_emp WHERE \$CONDITIONS' --connect jdbc:mysql://localhost:3306/employees --username root --password admin --target-dir /tmp/hive/dept_emp_txt -m 1"
+rm -f /home/hive/./QueryResult.java
 
 # Create the three temporary txt tables in Hive
 beeline -n hive -u jdbc:hive2://localhost:10000 -e 'CREATE EXTERNAL TABLE employees.employees_txt(
@@ -745,6 +786,18 @@ echo "# password:  hadoop                                        " | tee -a /roo
 echo "#                                                          " | tee -a /root/ambari_install.txt
 echo "# Username/Password info stored in /root/ambari_install.txt"
 echo "###########################################################" | tee -a /root/ambari_install.txt
+echo ""
+
+echo "Add the following to your hosts file:" | tee -a /root/ambari_install.txt
+ipaddr=$(hostname -I | awk '{print $1}')
+echo $ipaddr | grep '192.168.0.' > /dev/null
+if [ $? -eq 0 ]
+then
+    echo "${ipaddr} $(hostname -f)" | tee -a /root/ambari_install.txt
+else
+    ipaddr=$(curl -s ipinfo.io/ip)
+    echo "${ipaddr} ${FQDN}" | tee -a /root/ambari_install.txt
+fi
 echo ""
 
 echo "echo '" >> /root/.bash_profile

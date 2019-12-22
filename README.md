@@ -1,11 +1,11 @@
 # hdp-deploy
-hdp-deploy is a bash script that will install a full single node HDP cluster using Ambari. The aim is that hdp-deploy will always install the latest version of HDP and Ambari which is currently available for download from the [Hortonworks website](https://hortonworks.com/downloads/)
+hdp-deploy is a bash script that will install a full single node HDP cluster using Ambari. The aim is that hdp-deploy will always install the latest version of HDP and Ambari which is currently available for download from the [Cloudera website](https://www.cloudera.com/downloads.html)
 
-Latest installation bits: Ambari 2.7.4.0 and HDP 3.1.4
+Latest installation bits: Ambari 2.7.5.0 and HDP 3.1.5
 
 ### Requirements
 hdp-deploy works only on CentOS 7 or RHEL 7. OpenJDK 8 will be used. 
-Your system needs at minimum 32GB RAM and at least 50GB disk space. 48GB Ram or more is preferred. 
+Your system needs at minimum 48GB RAM and at least 50GB disk space. 64GB Ram or more is preferred. 
 An Internet connection is also required, as hdp-deploy will download various files required to perform the automated installation.
 
 ### Usage
@@ -13,12 +13,24 @@ The general gist to use hdp-deploy:
 ```
 yum -y install git
 git clone https://github.com/willie-engelbrecht/hdp-deploy.git
+
+# Edit hdp-deploy/repo.env, and add your paywall username/password
+export PWALL_USER=""
+export PWALL_PASS=""
+
+# Now run the script
 ./hdp-deploy/hdp-deploy.sh
 ```
 
 By default hdp-deploy will setup and download repositories directly from the internet. However it is also possible to use hdp-deploy in an "offline" mode, by editing the repo.env file and changing the value to 1 for:
 ```
 USE_LOCAL_REPO=1
+```
+
+All download bits are behind a customer paywall, and only Cloudera customers have access to the binaries. Non customers can get access by creating a trial account and then you will have access for 60 days. Once you have your paywall username and ID, you need to edit the repo.env file and add your username/password. This is required by the script to download the software:
+```
+export PWALL_USER=""
+export PWALL_PASS=""
 ```
 
 And then updating the local repo locations to something on your local network:
@@ -65,6 +77,7 @@ hdp-deploy will fully install the following components:
   * Spark2
   * Druid
   * Superset
+  * DAS-Lite
   
 Over and above, hdp-deploy will also:
   * Create an Ambari user called willie (random password)

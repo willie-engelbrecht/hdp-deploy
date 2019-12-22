@@ -52,6 +52,7 @@
         {
             "hive-site" : {
                 "properties" : {
+                    "ambari.hive.db.schema.name": "hive",
                     "javax.jdo.option.ConnectionURL" : "jdbc:mysql://localhost/hive?createDatabaseIfNotExist=true",
                     "hive.tez.container.size" : "4096"
                  }
@@ -97,6 +98,13 @@
             "ranger-hdfs-plugin-properties" : {
                 "properties" : {
                     "ranger-hdfs-plugin-enabled" : "Yes"
+                }
+            }
+        },
+        {
+            "ranger-hdfs-security" : {
+                "properties" : {
+                    "ranger.plugin.hdfs.policy.rest.url" : "http://localhost:6080"
                 }
             }
         },
@@ -151,7 +159,7 @@
                 "properties" : {
                     "dfs.namenode.http-address" : "0.0.0.0:50070",
                     "dfs.replication" : "1",
-                    "dfs.replication.max" : "1"
+                    "dfs.replication.max" : "10"
                 }
             }
         },
@@ -190,6 +198,17 @@
             "atlas-env" : {
                 "properties" : {
                     "atlas.admin.password" : "xxxADMINPWxx"
+                }
+            }
+        },
+        {
+            "application-properties" : {
+                "properties" : {
+                    "atlas.audit.hbase.zookeeper.quorum" : "xxFQDNxx:2181",
+                    "atlas.graph.index.search.solr.zookeeper-url": "xxFQDNxx:2181/infra-solr",
+                    "atlas.graph.storage.hostname": "xxFQDNxx",
+                    "atlas.kafka.bootstrap.servers": "xxFQDNxx:6667",
+                    "atlas.kafka.zookeeper.connect": "xxFQDNxx:2181"
                 }
             }
         },
@@ -236,7 +255,11 @@
                     "druid.metadata.storage.connector.port" : "3306",
                     "druid.metadata.storage.type" : "mysql",
                     "druid.metadata.storage.connector.password" : "druid",
-                    "druid.metadata.storage.connector.connectURI" : "jdbc:mysql://localhost:3306/druid?createDatabaseIfNotExist=true"
+                    "druid.metadata.storage.connector.connectURI" : "jdbc:mysql://localhost:3306/druid?createDatabaseIfNotExist=true",
+                    "druid.extensions.loadList": "[\"mysql-metadata-storage\", \"druid-datasketches\", \"druid-hdfs-storage\", \"druid-kafka-indexing-service\", \"ambari-metrics-emitter\"]",
+                    "druid.storage.storageDirectory": "/user/druid/data",
+                    "druid.indexer.logs.type": "hdfs",
+                    "druid.indexer.logs.directory": "/user/druid/logs"
                 }
             }
         },
@@ -277,6 +300,32 @@
             "superset" : {
                 "properties" : {
                     "SUPERSET_WEBSERVER_PORT" : "9089"
+                }
+            }
+        },
+        {
+            "data_analytics_studio-properties" : {
+                "properties" : {
+                    "content" : "application.name=das-webapp\napplication.version=1.4.4.1.4.4.0-10\ndas.jobs.dir=/user/{{data_analytics_studio_user}}/jobs\ndas.api.url={{data_analytics_studio_webapp_server_url}}\nuse.hive.interactive.mode=false"
+                }
+            }
+        },
+        {
+            "data_analytics_studio-security-site" : {
+                "properties" : {
+                    "admin_users" : "admin"
+                }
+            }
+        },
+        {
+            "data_analytics_studio-database" : {
+                "properties" : {
+                    "data_analytics_studio_database_port" : "5435",
+                    "data_analytics_studio_database_username" : "das",
+                    "data_analytics_studio_database_host" : "xxFQDNxx",
+                    "das_autocreate_db" : "true",
+                    "data_analytics_studio_database_name" : "das",
+                    "data_analytics_studio_database_password" : "supersecret1"
                 }
             }
         }
@@ -434,7 +483,13 @@
                 },
                 {
                     "name" : "DRUID_HISTORICAL"
-                }       
+                },
+                {
+                    "name" : "DATA_ANALYTICS_STUDIO_EVENT_PROCESSOR"
+                },
+                {
+                    "name" : "DATA_ANALYTICS_STUDIO_WEBAPP"
+                }
                    ],
                    "cardinality" : "1"
                }
