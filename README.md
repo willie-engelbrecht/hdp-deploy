@@ -1,7 +1,7 @@
 # hdp-deploy
 hdp-deploy is a bash script that will install a full single node HDP cluster using Ambari. The aim is that hdp-deploy will always install the latest version of HDP and Ambari which is currently available for download from the [Cloudera website](https://www.cloudera.com/downloads.html)
 
-Latest installation bits: Ambari 2.7.5.0 and HDP 3.1.5
+Latest installation bits: Ambari 2.7.5.0 and HDP 3.1.5.0
 
 ### Requirements
 hdp-deploy works only on CentOS 7 or RHEL 7. OpenJDK 8 will be used. 
@@ -27,7 +27,7 @@ By default hdp-deploy will setup and download repositories directly from the int
 USE_LOCAL_REPO=1
 ```
 
-All download bits are behind a customer paywall, and only Cloudera customers have access to the binaries. Non customers can get access by creating a trial account and then you will have access for 60 days. Once you have your paywall username and ID, you need to edit the repo.env file and add your username/password. This is required by the script to download the software:
+All download bits are behind a customer paywall, and only Cloudera customers have access to the binaries. Non customers can get access by creating a trial account and then you will have access for 60 days. Once you have your paywall username and password, you need to edit the repo.env file and add your username/password. This is required by the script to download the software:
 ```
 export PWALL_USER=""
 export PWALL_PASS=""
