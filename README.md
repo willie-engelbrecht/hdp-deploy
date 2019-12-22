@@ -22,15 +22,15 @@ export PWALL_PASS=""
 ./hdp-deploy/hdp-deploy.sh
 ```
 
-By default hdp-deploy will setup and download repositories directly from the internet. However it is also possible to use hdp-deploy in an "offline" mode, by editing the repo.env file and changing the value to 1 for:
-```
-USE_LOCAL_REPO=1
-```
-
 All download bits are behind a customer paywall, and only Cloudera customers have access to the binaries. Non customers can get access by creating a trial account and then you will have access for 60 days. Once you have your paywall username and password, you need to edit the repo.env file and add your username/password. This is required by the script to download the software:
 ```
 export PWALL_USER=""
 export PWALL_PASS=""
+```
+
+By default hdp-deploy will setup and download repositories directly from the internet. However it is also possible to use hdp-deploy in an "offline" mode, by editing the repo.env file and changing the value to 1 for:
+```
+USE_LOCAL_REPO=1
 ```
 
 And then updating the local repo locations to something on your local network:
