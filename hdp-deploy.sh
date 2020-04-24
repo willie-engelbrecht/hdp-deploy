@@ -21,7 +21,7 @@ export SOLR_VERSION="SOLR-2.6-100"
 
 export OS="redhat7"
 export CLUSTER_NAME="singlenode"
-export FQDNx="$(hostname -I)" # There will be an annoying space added to the end. Next command will clear it with xargs
+export FQDNx="$(hostname -I | awk '{print $1}')" # There will be an annoying space added to the end. Next command will clear it with xargs
 export FQDN=$(echo $FQDNx | xargs)
 
 export REALM=HWX.COM
