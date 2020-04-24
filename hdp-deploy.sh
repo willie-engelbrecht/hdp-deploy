@@ -243,12 +243,12 @@ ambari-server setup --enable-lzo-under-gpl-license -j /usr/lib/jvm/java-1.8.0-op
 # Download the DAS LITE Mpack and add to Ambari
 wget -q -O - ${DAS_LITE} > /tmp/DAS-lite.tar.gz
 ambari-server install-mpack --mpack=/tmp/DAS-lite.tar.gz --force
+yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 
 # Start and configure Ambari
 ambari-server start
 printf "\nRunning ambari-server setup...\n"
 ambari-server setup --jdbc-db=mysql --jdbc-driver="/usr/share/java/mysql-connector-java.jar"
-yum -y remove pgdg-redhat-repo-42.0-5.noarch
 
 # Make MySQL listen on localhost only
 printf "\nConfiguring MySQL/MariaDB:\n"
@@ -470,6 +470,10 @@ do
 done
 sleep 10;
 
+# Patch the hive_service.py file
+mv /var/lib/ambari-server/resources/stacks/HDP/3.0/services/HIVE/package/scripts/hive_service.py /var/lib/ambari-server/resources/stacks/HDP/3.0/services/HIVE/package/scripts/hive_service.py.old
+mv hive_service.py /var/lib/ambari-server/resources/stacks/HDP/3.0/services/HIVE/package/scripts/hive_service.py
+
 echo ""
 echo "HDFS (Namenode) is running ...."
 echo ""
@@ -489,11 +493,11 @@ su - hdfs -c "hdfs dfs -chmod 700 /test"
 sed -i 's/hdfs,//' /etc/hadoop/conf/container-executor.cfg
   
 # Create the DAS role and Database. This mostly due to a chicken&egg problem. DAS insists on installing the DB itself, but won't create the user/db
-systemctl enable postgresql-9.6
-systemctl start postgresql-9.6
-sleep 2
-su - postgres -c "echo \"CREATE ROLE das LOGIN PASSWORD 'supersecret1'\" | psql -p 5435"
-su - postgres -c "echo \"CREATE DATABASE das OWNER das ENCODING 'UTF-8'\" | psql -p 5435"
+#systemctl enable postgresql-9.6
+#systemctl start postgresql-9.6
+#sleep 2
+#su - postgres -c "echo \"CREATE ROLE das LOGIN PASSWORD 'supersecret1'\" | psql -p 5435"
+#su - postgres -c "echo \"CREATE DATABASE das OWNER das ENCODING 'UTF-8'\" | psql -p 5435"
 
 # Waiting for Ambari server to start
 echo "Waiting for Hiveserver2 at ${FQDN}:10000 to respond to requests."

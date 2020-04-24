@@ -59,13 +59,6 @@
             }
         },
         {
-            "hivemetastore-site" : {
-                "properties" : {
-                    "hive.metastore.event.db.notification.api.auth" : "false"
-                }
-            }
-        },
-        {
             "tez-site" : {
                 "properties" : {
                     "tez.am.resource.memory.mb" : "1024",
@@ -309,6 +302,32 @@
                     "SUPERSET_WEBSERVER_PORT" : "9089"
                 }
             }
+        },
+        {
+            "data_analytics_studio-properties" : {
+                "properties" : {
+                    "content" : "application.name=das-webapp\napplication.version=1.4.4.1.4.4.0-10\ndas.jobs.dir=/user/{{data_analytics_studio_user}}/jobs\ndas.api.url={{data_analytics_studio_webapp_server_url}}\nuse.hive.interactive.mode=false"
+                }
+            }
+        },
+        {
+            "data_analytics_studio-security-site" : {
+                "properties" : {
+                    "admin_users" : "admin"
+                }
+            }
+        },
+        {
+            "data_analytics_studio-database" : {
+                "properties" : {
+                    "data_analytics_studio_database_port" : "5435",
+                    "data_analytics_studio_database_username" : "das",
+                    "data_analytics_studio_database_host" : "xxFQDNxx",
+                    "das_autocreate_db" : "true",
+                    "data_analytics_studio_database_name" : "das",
+                    "data_analytics_studio_database_password" : "supersecret1"
+                }
+            }
         }
     ],
     "host_groups" : [
@@ -464,6 +483,12 @@
                 },
                 {
                     "name" : "DRUID_HISTORICAL"
+                },
+                {
+                    "name" : "DATA_ANALYTICS_STUDIO_EVENT_PROCESSOR"
+                },
+                {
+                    "name" : "DATA_ANALYTICS_STUDIO_WEBAPP"
                 }
                    ],
                    "cardinality" : "1"
